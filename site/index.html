@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Football score predictions: NFL and college</title>
+<meta name="description" content="Model-based score predictions for NFL and college football, with a public track record.">
+<style>
+:root{--bg:#f3f5f1;--card:#fff;--ink:#17231c;--mute:#5d6b62;--line:#d9dfd7;--turf:#1d6b49;--turf2:#e3efe8;--miss:#b3472f;--miss2:#f6e4df}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1713;--card:#17211b;--ink:#e6ede8;--mute:#93a398;--line:#27352c;--turf:#4fbf8a;--turf2:#1b2e24;--miss:#e58a72;--miss2:#2f1f1a}}
+:root[data-theme=dark]{--bg:#0f1713;--card:#17211b;--ink:#e6ede8;--mute:#93a398;--line:#27352c;--turf:#4fbf8a;--turf2:#1b2e24;--miss:#e58a72;--miss2:#2f1f1a}
+*{box-sizing:border-box}
+html{scroll-padding-top:1rem}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:1.25rem 1rem 3rem}
+h1{font:700 1.9rem/1.15 Georgia,"Times New Roman",serif;margin:.4rem 0 .3rem}
+h2{font:700 1.25rem/1.2 Georgia,serif;margin:2.2rem 0 .8rem}
+.sub{color:var(--mute);margin:0 0 1rem;max-width:62ch}
+.top{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:1rem 0}
+.tabs{display:flex;gap:.4rem}
+.tab{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:.5rem 1rem;border-radius:999px;cursor:pointer}
+.tab[aria-selected=true]{background:var(--turf);border-color:var(--turf);color:#fff}
+.tab:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid var(--turf);outline-offset:2px}
+input[type=search]{font:inherit;padding:.5rem .8rem;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);min-width:12rem}
+.meta{font-size:.85rem;color:var(--mute)}
+.day{font-weight:600;margin:1.4rem 0 .5rem;color:var(--mute);font-size:.95rem}
+.game{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;margin-bottom:.6rem}
+.row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.6rem}
+.team{font-weight:600;font-size:1.05rem}
+.team.r{text-align:right}
+.score{font:700 1.7rem/1 Georgia,serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.score i{font-style:normal;color:var(--mute);font-weight:400;margin:0 .35rem}
+.fav{color:var(--turf);font-weight:700}
+.bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:.7rem 0 .4rem;background:var(--line)}
+.bar span{background:var(--turf)}
+.bar b{background:#9aa89f;flex:1}
+.info{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.85rem;color:var(--mute)}
+.info strong{color:var(--ink)}
+.chip{background:var(--turf2);color:var(--ink);border-radius:999px;padding:0 .55rem}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.92rem}
+th,td{padding:.55rem .7rem;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font-weight:600;color:var(--mute);background:var(--bg)}
+th:first-child,td:first-child{text-align:left}
+tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto}
+.ok{background:var(--turf2)}.no{background:var(--miss2)}
+.tag{font-weight:700}.tag.ok{color:var(--turf);background:none}.tag.no{color:var(--miss);background:none}
+.empty{padding:1.5rem;background:var(--card);border:1px dashed var(--line);border-radius:10px;color:var(--mute)}
+.note{font-size:.88rem;color:var(--mute);max-width:70ch}
+footer{margin-top:3rem;font-size:.85rem;color:var(--mute);border-top:1px solid var(--line);padding-top:1rem}
+@media (max-width:520px){.score{font-size:1.4rem}.team{font-size:.95rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Football score predictions</h1>
+  <p class="sub">Predicted scores and win chances for upcoming NFL and college games, from a statistical model. Every prediction below is graded in public.</p>
+
+  <div class="top">
+    <div class="tabs" role="tablist" aria-label="League">
+      <button class="tab" role="tab" data-l="nfl" aria-selected="true">NFL</button>
+      <button class="tab" role="tab" data-l="cfb" aria-selected="false">College</button>
+    </div>
+    <input id="q" type="search" placeholder="Filter by team" aria-label="Filter by team">
+  </div>
+  <div class="meta" id="meta"></div>
+
+  <h2>Upcoming games</h2>
+  <div id="games"></div>
+
+  <h2>Recent results</h2>
+  <p class="note">Predictions made before kickoff by a model trained only on earlier games.</p>
+  <div class="scroll" id="recent"></div>
+
+  <h2>Track record</h2>
+  <p class="note">Each season is predicted by a model trained only on earlier seasons. Error is in points per game; lower is better.</p>
+  <div class="scroll" id="record"></div>
+
+  <footer>
+    <p>These are statistical estimates for information and entertainment, not betting advice. Football is noisy: even the best models are wrong about a third of the time.</p>
+    <p>Data: <a href="https://github.com/nflverse">nflverse</a>, <a href="https://collegefootballdata.com">CollegeFootballData.com</a>, <a href="https://open-meteo.com">Open-Meteo</a>.</p>
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const D = {}; let L = "nfl";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const f1 = x => x.toFixed(1), pct = x => Math.round(x * 100) + "%";
+
+async function load(l) {
+  try { const r = await fetch(`data/${l}.json?t=${Date.now()}`); if (!r.ok) throw 0; D[l] = await r.json(); }
+  catch (e) { D[l] = null; }
+}
+function when(k) {
+  const o = {weekday:"short", month:"short", day:"numeric"};
+  if (k.length > 10) return new Date(k);
+  return new Date(k + "T12:00:00");
+}
+function dayKey(k) { return when(k).toLocaleDateString([], {weekday:"long", month:"long", day:"numeric"}); }
+function timeStr(k) { return k.length > 10 ? when(k).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : ""; }
+
+function render() {
+  const d = D[L], q = $("q").value.trim().toLowerCase();
+  if (!d) {
+    $("meta").textContent = "";
+    $("games").innerHTML = `<div class="empty">No data for this league yet. It appears after the next scheduled update.</div>`;
+    $("recent").innerHTML = $("record").innerHTML = "";
+    return;
+  }
+  const upd = new Date(d.generated_at);
+  $("meta").textContent = `Updated ${upd.toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}. Model: ${d.model.groups.join(", ")}.`;
+  const hit = g => !q || g.home.toLowerCase().includes(q) || g.away.toLowerCase().includes(q);
+
+  const games = d.games.filter(hit);
+  if (!games.length) {
+    $("games").innerHTML = `<div class="empty">${d.games.length ? "No games match that team." : "No games in the next few days. Check back closer to kickoff."}</div>`;
+  } else {
+    let html = "", last = "";
+    for (const g of games) {
+      const day = dayKey(g.kickoff);
+      if (day !== last) { html += `<div class="day">${esc(day)}</div>`; last = day; }
+      const hf = g.pred_margin >= 0, spread = hf ? `${g.home} -${f1(g.pred_margin)}` : `${g.away} -${f1(-g.pred_margin)}`;
+      const wx = g.weather && !g.weather.dome ? `<span class="chip">${Math.round(g.weather.temp)}°F, ${Math.round(g.weather.wind)} mph wind${g.weather.known ? "" : " (typical)"}</span>` : (g.weather && g.weather.dome ? `<span class="chip">Indoors</span>` : "");
+      html += `<article class="game"><div class="row">
+        <div class="team ${hf ? "" : "fav"}">${esc(g.away)}</div>
+        <div class="score"><span class="${hf ? "" : "fav"}">${Math.round(g.pred_away)}</span><i>–</i><span class="${hf ? "fav" : ""}">${Math.round(g.pred_home)}</span></div>
+        <div class="team r ${hf ? "fav" : ""}">${esc(g.home)}${g.neutral ? " *" : ""}</div></div>
+        <div class="bar" role="img" aria-label="${esc(g.home)} win chance ${pct(g.home_win_prob)}"><span style="width:${g.home_win_prob * 100}%;margin-left:auto;order:2"></span><b style="order:1"></b></div>
+        <div class="info"><span>${esc(g.away)} <strong>${pct(1 - g.home_win_prob)}</strong> · ${esc(g.home)} <strong>${pct(g.home_win_prob)}</strong></span>
+        <span>Spread <strong>${esc(spread)}</strong></span><span>Total <strong>${f1(g.pred_total)}</strong></span>
+        ${timeStr(g.kickoff) ? `<span>${timeStr(g.kickoff)}</span>` : ""}${g.neutral ? "<span>* neutral site</span>" : ""}${wx}</div></article>`;
+    }
+    $("games").innerHTML = html;
+  }
+
+  const rec = d.recent.filter(hit);
+  $("recent").innerHTML = rec.length ? `<table><thead><tr><th>Game</th><th>Predicted</th><th>Final</th><th>Pick</th></tr></thead><tbody>${rec.map(r =>
+    `<tr><td>${esc(r.away)} at ${esc(r.home)}</td><td>${Math.round(r.pred_away)}–${Math.round(r.pred_home)}</td><td>${r.away_pts}–${r.home_pts}</td>
+     <td class="tag ${r.correct === true ? "ok" : r.correct === false ? "no" : ""}">${r.correct === true ? "Right" : r.correct === false ? "Missed" : "Tie"}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No recent games match.</div>`;
+
+  const bt = d.backtest, keys = Object.keys(bt).filter(k => k !== "ALL").sort().concat("ALL"), v = bt.ALL.vegas_acc != null;
+  $("record").innerHTML = `<table><thead><tr><th>Season</th><th>Games</th><th>Winner picked</th><th>Margin error</th><th>Total error</th>${v ? "<th>Vegas picked</th><th>Vegas margin error</th>" : ""}</tr></thead><tbody>${keys.map(k => {
+    const b = bt[k]; return `<tr><td>${k === "ALL" ? "All" : k}</td><td>${b.games}</td><td>${pct(b.win_acc)}</td><td>${f1(b.margin_MAE)}</td><td>${f1(b.total_MAE)}</td>${v ? `<td>${b.vegas_acc != null ? pct(b.vegas_acc) : ""}</td><td>${b.vegas_margin_MAE != null ? f1(b.vegas_margin_MAE) : ""}</td>` : ""}</tr>`; }).join("")}</tbody></table>`;
+}
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  L = t.dataset.l;
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t));
+  render();
+}));
+$("q").addEventListener("input", render);
+Promise.all([load("nfl"), load("cfb")]).then(() => {
+  if (!D.nfl && D.cfb) { L = "cfb"; document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x.dataset.l === "cfb")); }
+  render();
+});
+</script>
+</body>
+</html>
