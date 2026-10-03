@@ -42,7 +42,7 @@ import json
 import math
 import os
 import sys
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass
 
 import numpy as np
@@ -1105,24 +1105,64 @@ def grade_pick(e, hp, ap):
     return res, e["units"] * (WIN_UNITS if res == 1 else -1.0 if res == -1 else 0.0)
 
 
-def update_pick_log(path, league, upcoming, games, now):
-    """Append new official plays (once, at the line when first posted, only before kickoff), grade finished ones."""
+TOP_N, LOCK_DAYS = 5, 3   # official plays per week; a week's plays lock this many days before its first kickoff
+
+
+def _utc(k):
+    t = pd.Timestamp(k)
+    return t.tz_localize("UTC") if t.tzinfo is None else t
+
+
+def update_pick_log(path, league, cands, games, now):
+    """Keep the log to the top TOP_N plays per week. Plays are added once, before kickoff, at the line when
+    first posted, and never edited. Returns (live record dict, {play id: official-play details with rank})."""
     log = json.load(open(path)) if os.path.exists(path) else []
+    meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
+
+    def wk(e):
+        if e.get("season") is not None and e.get("week") is not None:
+            return (e["season"], e["week"])
+        if e["game_id"] in meta.index:
+            return (int(meta.at[e["game_id"], "season"]), int(meta.at[e["game_id"], "week"]))
+        return (None, None)
+
+    # 1) cap at TOP_N per week; only plays whose games haven't kicked off can ever be removed
+    by = defaultdict(list)
+    for e in log:
+        by[wk(e)].append(e)
+    drop = set()
+    for es in by.values():
+        pend = sorted([e for e in es if e["status"] == "pending" and _before_kickoff(e["kickoff"], now)],
+                      key=lambda e: -e["edge"])
+        room = TOP_N - (len(es) - len(pend))
+        drop |= {e["id"] for e in pend[max(room, 0):]}
+    log = [e for e in log if e["id"] not in drop]
+
+    # 2) lock each week's top plays once its first kickoff is within LOCK_DAYS
     have = {e["id"] for e in log}
-    for u in upcoming:
-        if not _before_kickoff(u["kickoff"], now):
+    cnt = defaultdict(int)
+    for e in log:
+        cnt[wk(e)] += 1
+    byw = defaultdict(list)
+    for u in cands:
+        byw[(u["season"], u["week"])].append(u)
+    for k, us in byw.items():
+        if _utc(min(u["kickoff"] for u in us)) - now > pd.Timedelta(days=LOCK_DAYS) or cnt[k] >= TOP_N:
             continue
-        for typ in ("spread", "total"):
-            p = u.get(f"{typ}_play")
-            pid = f"{u['game_id']}|{typ}"
-            if p and pid not in have:
-                log.append(_clean({"id": pid, "type": typ, "game_id": u["game_id"], "league": league,
-                                   "kickoff": u["kickoff"], "away": u["away"], "home": u["home"],
-                                   "team": p.get("team"), "side": p.get("side"), "line": p["line"],
-                                   "edge": p["edge"], "units": p["units"], "pred_away": u["pred_away"],
-                                   "pred_home": u["pred_home"], "status": "pending",
-                                   "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}))
-    fin = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
+        pool = [(p["edge"], typ, u, p) for u in us if _before_kickoff(u["kickoff"], now)
+                for typ in ("spread", "total") for p in [u.get(f"{typ}_play")]
+                if p and f"{u['game_id']}|{typ}" not in have]
+        pool.sort(key=lambda x: -x[0])
+        for edge, typ, u, p in pool[:TOP_N - cnt[k]]:
+            log.append(_clean({"id": f"{u['game_id']}|{typ}", "type": typ, "game_id": u["game_id"], "league": league,
+                               "season": u["season"], "week": u["week"], "kickoff": u["kickoff"],
+                               "away": u["away"], "home": u["home"], "team": p.get("team"), "side": p.get("side"),
+                               "line": p["line"], "edge": p["edge"], "units": p["units"],
+                               "pred_away": u["pred_away"], "pred_home": u["pred_home"], "status": "pending",
+                               "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}))
+
+    # 3) grade finished plays
+    fin = meta
     for e in log:
         if e["status"] == "graded" or e["game_id"] not in fin.index:
             continue
@@ -1149,28 +1189,40 @@ def update_pick_log(path, league, upcoming, games, now):
             series[-1][1] = round(cum, 2)
         else:
             series.append([day, round(cum, 2)])
-    return {"record": {"all": sub(), "spread": sub("spread"), "total": sub("total")}, "series": series,
+    live = {"record": {"all": sub(), "spread": sub("spread"), "total": sub("total")}, "series": series,
             "picks": pend + done[::-1][:50], "pending": len(pend),
             "since": min([e["logged_at"][:10] for e in log], default=None)}
+    official, byk = {}, defaultdict(list)
+    for e in log:
+        byk[wk(e)].append(e)
+    for es in byk.values():
+        for r, e in enumerate(sorted(es, key=lambda e: -e["edge"]), 1):
+            official[e["id"]] = {"team": e.get("team"), "side": e.get("side"), "line": e["line"],
+                                 "edge": e["edge"], "units": e["units"], "rank": r, "of": TOP_N}
+    return live, official
 
 
 def play_frame(allr, games):
     """Every official play the rules would have made, graded (for the backtest)."""
     d = allr[allr.mkt_spread.notna()].copy()
     d["date"] = games.loc[d.index, "date"]
+    d["week"] = games.loc[d.index, "week"]
     es = d.pred_margin - d.mkt_spread
     sp = d[es.abs() >= EDGE_PLAY].copy()
+    sp["edge"] = es[sp.index].abs()
     sp["type"] = "spread"
     sp["res"] = np.where(es[sp.index] > 0, 1, -1) * np.sign(sp.actual_margin - sp.mkt_spread)
     sp["units"] = np.where(es[sp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
     t = d[d.mkt_total.notna()]
     et = t.pred_total - t.mkt_total
     tp = t[et.abs() >= EDGE_PLAY].copy()
+    tp["edge"] = et[tp.index].abs()
     tp["type"] = "total"
     tp["res"] = np.where(et[tp.index] > 0, 1, -1) * np.sign(tp.actual_total - tp.mkt_total)
     tp["units"] = np.where(et[tp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
-    cols = ["date", "season", "type", "res", "units"]
-    out = pd.concat([sp[cols], tp[cols]]).sort_values("date")
+    cols = ["date", "season", "week", "type", "res", "units", "edge"]
+    out = pd.concat([sp[cols], tp[cols]])
+    out = out.sort_values("edge", ascending=False).groupby(["season", "week"]).head(TOP_N).sort_values("date")
     out["net"] = out.units * np.where(out.res == 1, WIN_UNITS, np.where(out.res == -1, -1.0, 0.0))
     return out
 
@@ -1329,13 +1381,25 @@ def cmd_export(args):
     seasons2 = [current_season() - 2, current_season() - 1]   # the two most recent completed seasons
     a2 = allr[allr.season.isin(seasons2)]
     bt2 = backtest_block(play_frame(a2, games), a2)
-    live = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, upcoming, games, pd.Timestamp.now("UTC"))
+    now = pd.Timestamp.now("UTC")
+    upc = (~played) & games.mkt_spread.notna() & (games.date >= today - pd.Timedelta(days=1))
+    cands = []
+    if upc.any():
+        for idx, r in games.loc[upc].join(model.predict(feats.loc[upc, cols])).iterrows():
+            pk = make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)
+            cands.append({"game_id": _gid(r.game_id), "season": int(r.season), "week": int(r.week),
+                          "kickoff": _kickoff(r), "away": r.away, "home": r.home, "pred_away": r.pred_away,
+                          "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"]})
+    live, official = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, cands, games, now)
+    for u in upcoming:   # only the locked top plays are "official"; every game keeps its sim side
+        u["spread_play"] = official.get(f"{u['game_id']}|spread")
+        u["total_play"] = official.get(f"{u['game_id']}|total")
 
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
-        "games": upcoming, "recent": recent, "backtest": by_season, "record": build_record(allr), "backtest_record": bt2, "backtest_seasons": seasons2, "live": live, "stats_season": stats_season, "stats_pool": pool_n,
-        "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG}})
+        "games": upcoming, "recent": recent, "backtest": by_season, "backtest_record": bt2, "backtest_seasons": seasons2, "live": live, "stats_season": stats_season, "stats_pool": pool_n,
+        "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG, "top_n": TOP_N}})
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w") as f:
