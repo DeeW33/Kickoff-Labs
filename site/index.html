@@ -3,64 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kickoff Labs: football picks from a stat-driven model</title>
-<meta name="description" content="NFL and college football score predictions, compared with Vegas lines, with a public graded record.">
+<title>Kickoff Labs: football picks with a public live record</title>
+<meta name="description" content="Model-based NFL and college football picks, graded in public, with a live record and a two-season backtest.">
 <style>
 :root{--bg:#0b1220;--panel:#121c31;--panel2:#18243f;--ink:#e8eefc;--mute:#8d9bb8;--line:#233252;--go:#3ddc97;--go2:#12352b;--amber:#f5b942;--bad:#ff7a6b}
 @media (prefers-color-scheme:light){:root{--bg:#f2f5fb;--panel:#fff;--panel2:#eef2fa;--ink:#101a30;--mute:#5b6985;--line:#d8e0ee;--go:#0d8a5b;--go2:#dff5ec;--amber:#b87800;--bad:#c4351f}}
-*{box-sizing:border-box}
+*{box-sizing:border-box}[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-a{color:inherit}
-.wrap{max-width:1000px;margin:0 auto;padding:0 1rem}
+a{color:inherit}.wrap{max-width:1000px;margin:0 auto;padding:0 1rem}
 header.bar{border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
 .nav{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.7rem 1rem}
-.brand{font:800 1.25rem/1 Georgia,serif;text-decoration:none;letter-spacing:.2px}
-.brand i{color:var(--go);font-style:normal}
-nav a{margin-left:1rem;text-decoration:none;color:var(--mute);font-size:.92rem}
-nav a:hover{color:var(--ink)}
+.brand{font:800 1.25rem/1 Georgia,serif;text-decoration:none}.brand i{color:var(--go);font-style:normal}
+nav a{margin-left:1rem;text-decoration:none;color:var(--mute);font-size:.92rem}nav a:hover{color:var(--ink)}
 .top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin:1.2rem 0 .4rem}
 .tabs{display:flex;gap:.4rem}
 .tab{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:.4rem .95rem;border-radius:999px;cursor:pointer}
 .tab[aria-selected=true]{background:var(--go);border-color:var(--go);color:#06140e;font-weight:700}
-.tab:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--go);outline-offset:2px}
+.tab:focus-visible,a:focus-visible{outline:3px solid var(--go);outline-offset:2px}
 .stamp{color:var(--mute);font-size:.85rem}
-h1{font:800 2.1rem/1.1 Georgia,serif;margin:.6rem 0 .4rem}
-h2{font:700 1.35rem/1.2 Georgia,serif;margin:2.4rem 0 .5rem}
+h1{font:800 2.1rem/1.1 Georgia,serif;margin:.6rem 0 .4rem}h2{font:700 1.35rem/1.2 Georgia,serif;margin:2.4rem 0 .5rem}
 h3{font-size:.95rem;color:var(--mute);margin:1.6rem 0 .5rem;font-weight:600}
-.lead{color:var(--mute);max-width:64ch;margin:0 0 1rem}
+.lead,.note{color:var(--mute);max-width:68ch}.lead{margin:0 0 1rem}.note{font-size:.88rem}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin:1rem 0}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem}
-.stat b{display:block;font:800 1.7rem/1.1 Georgia,serif;font-variant-numeric:tabular-nums}
-.stat span{color:var(--mute);font-size:.82rem}
+.stat b{display:block;font:800 1.9rem/1.1 Georgia,serif;font-variant-numeric:tabular-nums}.stat span{color:var(--mute);font-size:.82rem}
 .pos{color:var(--go)}.neg{color:var(--bad)}
+.chartbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.5rem;margin:.8rem 0}.chartbox svg{width:100%;height:auto;display:block}
+.callout{display:block;text-decoration:none;background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:10px;padding:.8rem 1.1rem;margin:1.2rem 0}
+.callout b{display:block}.callout span{color:var(--mute);font-size:.88rem}
 .plays{display:grid;gap:.8rem;margin-top:1rem}
 .play{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--go);border-radius:10px;padding:.9rem 1.1rem}
 .play .hd{display:flex;justify-content:space-between;gap:.6rem;flex-wrap:wrap;font-size:.82rem;color:var(--mute)}
 .badge{background:var(--go2);color:var(--go);font-weight:700;border-radius:999px;padding:0 .6rem}
-.play .pick{font:800 1.6rem/1.2 Georgia,serif;margin:.35rem 0 .1rem}
-.play .mu{font-weight:600}
-.facts{display:flex;flex-wrap:wrap;gap:.2rem 1.2rem;margin-top:.5rem;font-size:.86rem;color:var(--mute)}
-.facts b{color:var(--ink);font-weight:600}
+.play .pick{font:800 1.6rem/1.2 Georgia,serif;margin:.35rem 0 .1rem}.play .mu{font-weight:600}
+.facts{display:flex;flex-wrap:wrap;gap:.2rem 1.2rem;margin-top:.5rem;font-size:.86rem;color:var(--mute)}.facts b{color:var(--ink);font-weight:600}
 .chip{background:var(--panel2);border-radius:999px;padding:0 .55rem;font-size:.8rem}
 .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
-table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
+table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:600px}
 th,td{padding:.55rem .75rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
-th{color:var(--mute);font-weight:600;background:var(--panel2);font-size:.8rem}
-tr:last-child td{border-bottom:0}
+th{color:var(--mute);font-weight:600;background:var(--panel2);font-size:.8rem}tr:last-child td{border-bottom:0}
 td small{display:block;color:var(--mute);font-size:.78rem}
-.star{color:var(--amber);font-weight:700;display:block}
-.sim{color:var(--mute);display:block}
-.mlv{color:var(--go);font-size:.8rem;display:block}
-.note{color:var(--mute);font-size:.86rem;max-width:72ch}
+.star{color:var(--amber);font-weight:700;display:block}.sim{color:var(--mute);display:block}.mlv{color:var(--go);font-size:.8rem;display:block}
 .empty{padding:1.3rem;border:1px dashed var(--line);border-radius:10px;color:var(--mute)}
+.back{color:var(--mute);text-decoration:none;font-size:.9rem;display:inline-block;margin-top:1rem}
 footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem}
-@media (max-width:560px){.stats{grid-template-columns:1fr}.stat b{font-size:1.4rem}h1{font-size:1.7rem}nav a{margin-left:.7rem}}
+@media (max-width:560px){.stats{grid-template-columns:1fr}.stat b{font-size:1.5rem}h1{font-size:1.7rem}nav a{margin-left:.7rem}}
 </style>
 </head>
 <body>
 <header class="bar"><div class="nav">
-  <a class="brand" href="#">Kickoff <i>Labs</i></a>
-  <nav><a href="#plays">Official plays</a><a href="#games">All predictions</a><a href="#record">Record</a><a href="#about">About</a></nav>
+  <a class="brand" href="#live">Kickoff <i>Labs</i></a>
+  <nav><a href="#live">Live record</a><a href="#plays">This week</a><a href="#games">All predictions</a><a href="#backtest">Backtest</a><a href="#about">About</a></nav>
 </div></header>
 <main class="wrap">
   <div class="top">
@@ -71,39 +64,49 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
     <div class="stamp" id="stamp"></div>
   </div>
 
-  <section id="plays">
-    <h1>Our official plays</h1>
-    <p class="lead">A play is made when the model's number differs from the Vegas line by 3 or more points (1 unit), or 4 or more (1.5 units). Everything else is shown below without a bet.</p>
-    <div class="stats" id="stats"></div>
-    <div class="plays" id="playlist"></div>
-    <p class="note" id="playnote"></p>
-  </section>
+  <div id="v-main">
+    <section id="live">
+      <h1>Live record</h1>
+      <p class="lead">Every official play is logged before kickoff at the line it was posted, then graded after the game. Picks are never edited afterward, and the full log is public in this site's repository history.</p>
+      <div class="stats" id="lstats"></div>
+      <div class="chartbox" id="lchart"></div>
+      <p class="note" id="lnote"></p>
+      <h3>Plays, newest first</h3>
+      <div class="scroll" id="ltable"></div>
+      <a class="callout" href="#backtest"><b>See the backtest: how these rules would have done over the past two seasons</b><span>Every game predicted before it was played, using only earlier data. Not a live record.</span></a>
+    </section>
 
-  <section id="record">
-    <h2>Record</h2>
-    <p class="note">Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is a backtest of the rules above, not a live record. Units assume −110 odds (1 unit = 1% of a bankroll).</p>
-    <div class="scroll" id="rec"></div>
-  </section>
+    <section id="plays">
+      <h2>This week's official plays</h2>
+      <p class="note">A play is made when the model's number differs from the Vegas line by 3+ points (1 unit) or 4+ points (1.5 units). Lines move, so check the current number before you bet.</p>
+      <div class="plays" id="playlist"></div>
+    </section>
 
-  <section id="games">
-    <h2>All predictions</h2>
-    <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks an official play; "Sim" is the model's side on games without a play.</p>
-    <div id="days"></div>
-  </section>
+    <section id="games">
+      <h2>All predictions</h2>
+      <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks an official play; "Sim" is the model's side where there is no play.</p>
+      <div id="days"></div>
+    </section>
 
-  <section id="results">
-    <h2>Recent results</h2>
-    <div class="scroll" id="recent"></div>
-  </section>
+    <section id="about">
+      <h2>About</h2>
+      <p class="note">Kickoff Labs rates teams with an Elo system plus recent efficiency (EPA per play), quarterback quality, injuries and weather, then projects each game's score and compares it with the Vegas lines. The model is less accurate than the betting market overall, so its differences from Vegas are most likely noise. Treat them as ideas to examine, not sure things.</p>
+    </section>
+  </div>
 
-  <section id="about">
-    <h2>About</h2>
-    <p class="note">Kickoff Labs rates teams with an Elo system plus recent efficiency (EPA per play), quarterback quality, injuries and weather, then projects each game's score. It then compares those numbers with the Vegas lines. The model is less accurate than the betting market overall, so its differences from Vegas are most likely noise. Treat them as ideas to examine, not sure things.</p>
-  </section>
+  <div id="v-bt" hidden>
+    <a class="back" href="#live">← Back to the live record</a>
+    <h1>Backtest: the past two seasons</h1>
+    <p class="lead" id="btlead"></p>
+    <div class="stats" id="bstats"></div>
+    <div class="chartbox" id="bchart"></div>
+    <div class="scroll" id="btable"></div>
+    <p class="note" style="margin-top:.8rem">Two seasons is a small sample, and results swing from year to year. A big gap between the seasons is normal variation, not a trend. The last row shows the model's side on every spread with no filter, as a reference point. Units assume −110 odds.</p>
+  </div>
 
   <footer>
     <p>For entertainment only. Not betting or financial advice. You must be 21+ (or the legal age where you live). Never bet money you can't afford to lose. Gambling problem? Call 1-800-GAMBLER. Past results do not guarantee future results.</p>
-    <p>Vegas lines come from nflverse's weekly odds data and may lag the market; lines move, so check the current number. Data: <a href="https://github.com/nflverse">nflverse</a>, <a href="https://collegefootballdata.com">CollegeFootballData.com</a>, <a href="https://open-meteo.com">Open-Meteo</a>.</p>
+    <p>Vegas lines come from nflverse's weekly odds data and may lag the market. Data: <a href="https://github.com/nflverse">nflverse</a>, <a href="https://collegefootballdata.com">CollegeFootballData.com</a>, <a href="https://open-meteo.com">Open-Meteo</a>.</p>
   </footer>
 </main>
 
@@ -116,82 +119,103 @@ const ml = n => n == null ? "n/a" : (n > 0 ? "+" : "−") + Math.abs(n);
 const units = u => (u >= 0 ? "+" : "−") + Math.abs(u).toFixed(1) + "u";
 const when = k => new Date(k.length > 10 ? k : k + "T12:00:00");
 const dayOf = k => when(k).toLocaleDateString([], {weekday:"long", month:"long", day:"numeric"});
+const shortDay = k => when(k).toLocaleDateString([], {month:"short", day:"numeric"});
 const timeOf = k => k.length > 10 ? when(k).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
 const favText = g => g.vegas_spread == null ? "n/a" : g.vegas_spread === 0 ? "PK" : g.vegas_spread > 0 ? `${g.home} −${tr(g.vegas_spread)}` : `${g.away} −${tr(-g.vegas_spread)}`;
+const recTxt = r => `${r.w}-${r.l}${r.p ? "-" + r.p : ""}`;
+const pickLabel = e => e.type === "spread" ? `${e.team} ${line(e.line)}` : `${e.side} ${tr(e.line)}`;
 
 async function load(l) { try { const r = await fetch(`data/${l}.json?t=${Date.now()}`); if (!r.ok) throw 0; D[l] = await r.json(); } catch (e) { D[l] = null; } }
 
+function chart(series) {
+  if (!series || series.length < 2) return `<div class="empty">The chart appears once a few plays have been graded.</div>`;
+  const W = 600, H = 170, p = 28, ys = series.map(s => s[1]).concat(0), lo = Math.min(...ys), hi = Math.max(...ys), sp = (hi - lo) || 1;
+  const x = i => p + (W - 2 * p) * i / (series.length - 1), y = v => H - p - (H - 2 * p) * (v - lo) / sp;
+  const pts = series.map((s, i) => `${x(i).toFixed(1)},${y(s[1]).toFixed(1)}`).join(" "), last = series[series.length - 1][1];
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative units, now ${units(last)}"><line x1="${p}" x2="${W - p}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)" stroke-dasharray="4 4"/>
+    <polyline fill="none" stroke="var(--go)" stroke-width="2.5" points="${pts}"/><text x="${p}" y="15" fill="var(--mute)" font-size="11">Cumulative units, ${series[0][0]} to ${series[series.length - 1][0]}: ${units(last)}</text></svg>`;
+}
+function stats(o, label) {
+  const t = o.w + o.l;
+  return `<div class="stat"><b>${recTxt(o)}</b><span>${label}</span></div>
+    <div class="stat"><b>${t ? pct1(o.win_pct) : "—"}</b><span>Win rate (break-even is 52.4%)${t ? `; 95% range ${pct1(o.lo)} to ${pct1(o.hi)}` : ""}</span></div>
+    <div class="stat"><b class="${o.units >= 0 ? "pos" : "neg"}">${t ? units(o.units) : "0.0u"}</b><span>Units at −110</span></div>`;
+}
 function wx(g) { const w = g.weather; if (!w) return ""; return w.dome ? `<span class="chip">Indoors</span>` : `<span class="chip">${Math.round(w.temp)}°F, ${Math.round(w.wind)} mph wind${w.known ? "" : " (typical)"}</span>`; }
 
 function playCard(x) {
   const g = x.g, p = x.p, spread = x.type === "spread";
-  const head = spread ? `${esc(p.team)} ${line(p.line)}` : `${p.side} ${tr(p.line)}`;
-  const ev = g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : "";
   return `<article class="play"><div class="hd"><span><span class="badge">Official play · ${p.units}u</span> ${spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
-    <div class="pick">${head}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
-    <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span>
-    <span>Model gap: <b>${tr(p.edge)} pts</b></span><span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${ev}${wx(g)}</div></article>`;
+    <div class="pick">${spread ? `${esc(p.team)} ${line(p.line)}` : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
+    <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
+    <span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div></article>`;
 }
-
-function recTable(r) {
-  const rows = [["Official plays (all)", r.official_all], ["Official spread plays", r.official_spread], ["Official total plays", r.official_total],
-    ["Model side on every spread", r.sim_spread_all], ["Model Overs", r.sim_over], ["Model Unders", r.sim_under]];
-  return `<table><thead><tr><th>Bet type</th><th>Record</th><th>Win %</th><th>95% range</th><th>Units at −110</th></tr></thead><tbody>${rows.map(([n, v]) => {
-    const t = v.w + v.l; return `<tr><td>${n}</td><td>${v.w}-${v.l}${v.p ? "-" + v.p : ""}</td><td>${t ? pct1(v.win_pct) : "—"}</td><td>${t ? pct1(v.lo) + " to " + pct1(v.hi) : "—"}</td>
-    <td class="${v.units >= 0 ? "pos" : "neg"}">${t ? units(v.units) : "—"}</td></tr>`; }).join("")}</tbody></table>`;
-}
-
 function gameRow(g) {
-  let cell = "";
-  if (g.spread_play) cell += `<span class="star">★ ${esc(g.spread_play.team)} ${line(g.spread_play.line)} · ${g.spread_play.units}u</span>`;
-  else if (g.sim_spread) cell += `<span class="sim">Sim: ${esc(g.sim_spread.team)} ${line(g.sim_spread.line)}</span>`;
-  if (g.total_play) cell += `<span class="star">★ ${g.total_play.side} ${tr(g.total_play.line)} · ${g.total_play.units}u</span>`;
-  else if (g.sim_total) cell += `<span class="sim">Sim: ${g.sim_total.side} ${tr(g.sim_total.line)}</span>`;
-  if (g.ml_value) { const p = g.ml_value === g.home ? g.home_win_prob : 1 - g.home_win_prob, i = g.ml_value === g.home ? g.ml_implied_home : 1 - g.ml_implied_home;
-    cell += `<span class="mlv">ML value: ${esc(g.ml_value)} (model ${pct(p)} vs ${pct(i)} implied)</span>`; }
-  const vegas = g.vegas_spread == null ? `<small>No line yet</small>` : `${esc(favText(g))} <small>O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"} · ML ${esc(g.home)} ${ml(g.ml_home)} / ${esc(g.away)} ${ml(g.ml_away)}</small>`;
+  let c = "";
+  if (g.spread_play) c += `<span class="star">★ ${esc(g.spread_play.team)} ${line(g.spread_play.line)} · ${g.spread_play.units}u</span>`;
+  else if (g.sim_spread) c += `<span class="sim">Sim: ${esc(g.sim_spread.team)} ${line(g.sim_spread.line)}</span>`;
+  if (g.total_play) c += `<span class="star">★ ${g.total_play.side} ${tr(g.total_play.line)} · ${g.total_play.units}u</span>`;
+  else if (g.sim_total) c += `<span class="sim">Sim: ${g.sim_total.side} ${tr(g.sim_total.line)}</span>`;
+  if (g.ml_value) { const h = g.ml_value === g.home, m = h ? g.home_win_prob : 1 - g.home_win_prob, i = h ? g.ml_implied_home : 1 - g.ml_implied_home;
+    c += `<span class="mlv">ML value: ${esc(g.ml_value)} (model ${pct(m)} vs ${pct(i)} implied)</span>`; }
+  const v = g.vegas_spread == null ? `<small>No line yet</small>` : `${esc(favText(g))} <small>O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"} · ML ${esc(g.home)} ${ml(g.ml_home)} / ${esc(g.away)} ${ml(g.ml_away)}</small>`;
   return `<tr><td><b>${esc(g.away)} @ ${esc(g.home)}</b>${g.neutral ? " *" : ""}<small>${timeOf(g.kickoff)} ${wx(g)}</small></td>
-    <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${vegas}</td><td>${cell || "—"}</td></tr>`;
+    <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${v}</td><td>${c || "—"}</td></tr>`;
+}
+function liveRow(e) {
+  const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
+  return `<tr><td>${esc(e.away)} @ ${esc(e.home)}<small>${shortDay(e.kickoff)}</small></td><td><b>${esc(pickLabel(e))}</b></td><td>${e.units}u</td>
+    <td class="${cls}">${done ? `${e.result === 1 ? "Win" : e.result === -1 ? "Loss" : "Push"} ${units(e.net)}<small>Final ${e.away_pts}–${e.home_pts}</small>` : `Pending<small>${timeOf(e.kickoff) || shortDay(e.kickoff)}</small>`}</td></tr>`;
+}
+function btTable(b, seasons) {
+  const rows = []; const add = (name, o) => [["All plays", o.all], ["Spreads", o.spread], ["Totals", o.total]].forEach(([t, r], i) => rows.push([i ? "" : name, t, r]));
+  seasons.forEach(s => b.by_season[s] && add(s + " season", b.by_season[s])); add("Both seasons", b.overall); rows.push(["Reference", "Model side on every spread", b.all_spreads]);
+  return `<table><thead><tr><th>Period</th><th>Bet type</th><th>Record</th><th>Win %</th><th>95% range</th><th>Units</th></tr></thead><tbody>${rows.map(([a, t, v]) => { const n = v.w + v.l;
+    return `<tr><td>${a}</td><td>${t}</td><td>${recTxt(v)}</td><td>${n ? pct1(v.win_pct) : "—"}</td><td>${n ? pct1(v.lo) + " to " + pct1(v.hi) : "—"}</td><td class="${v.units >= 0 ? "pos" : "neg"}">${n ? units(v.units) : "—"}</td></tr>`; }).join("")}</tbody></table>`;
 }
 
 function render() {
   const d = D[L];
-  if (!d) { $("stamp").textContent = ""; $("stats").innerHTML = $("playlist").innerHTML = $("rec").innerHTML = $("recent").innerHTML = "";
-    $("days").innerHTML = `<div class="empty">No data for this league yet. It appears after the next scheduled update.</div>`; $("playnote").textContent = ""; return; }
+  if (!d) { $("stamp").textContent = ""; ["lstats","lchart","ltable","playlist","bstats","bchart","btable"].forEach(i => $(i).innerHTML = "");
+    $("lnote").textContent = ""; $("days").innerHTML = `<div class="empty">No data for this league yet. It appears after the next scheduled update.</div>`; return; }
   $("stamp").textContent = `${d.league.toUpperCase()} · updated ${new Date(d.generated_at).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}`;
+  const lv = d.live, hasLines = d.games.some(g => g.vegas_spread != null);
 
-  const r = d.record, hasRec = r && (r.official_all.w + r.official_all.l) > 0, hasLines = d.games.some(g => g.vegas_spread != null);
+  if (lv && (hasLines || lv.picks.length)) {
+    const o = lv.record.all, done = o.w + o.l + o.p;
+    $("lstats").innerHTML = stats(o, "Live record of official plays");
+    $("lchart").innerHTML = chart(lv.series);
+    $("lnote").textContent = done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
+      `Tracking is on. ${lv.pending} plays are logged and waiting for their games; results and the chart appear as games finish. Nothing is backfilled into this record.`;
+    $("ltable").innerHTML = lv.picks.length ? `<table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lv.picks.map(liveRow).join("")}</tbody></table>` : `<div class="empty">No plays logged yet.</div>`;
+  } else { $("lstats").innerHTML = $("lchart").innerHTML = $("ltable").innerHTML = ""; $("lnote").textContent = "Betting lines aren't available for this league yet, so there are no official plays to track."; }
+
   const plays = [];
   d.games.forEach(g => { if (g.spread_play) plays.push({type:"spread", g, p:g.spread_play}); if (g.total_play) plays.push({type:"total", g, p:g.total_play}); });
   plays.sort((a, b) => b.p.units - a.p.units || b.p.edge - a.p.edge);
-  const staked = plays.reduce((s, x) => s + x.p.units, 0);
-
-  if (hasRec) { const o = r.official_all; $("stats").innerHTML =
-    `<div class="stat"><b>${o.w}-${o.l}${o.p ? "-" + o.p : ""}</b><span>Backtest record of official plays</span></div>
-     <div class="stat"><b>${pct1(o.win_pct)}</b><span>Win rate (break-even is 52.4%; 95% range ${pct1(o.lo)} to ${pct1(o.hi)})</span></div>
-     <div class="stat"><b class="${o.units >= 0 ? "pos" : "neg"}">${units(o.units)}</b><span>Units at −110 (backtest)</span></div>`; } else $("stats").innerHTML = "";
-
-  $("playlist").innerHTML = plays.length ? plays.map(playCard).join("") : `<div class="empty">${hasLines ? "No plays right now: the model and Vegas agree closely on the upcoming games." : "Vegas lines aren't available for this league yet, so there are no official plays. Model scores are below."}</div>`;
-  $("playnote").textContent = plays.length ? `${plays.length} official plays this window, ${tr(staked)} units in total. Lines move, so check the current number before you bet; the gap is largest early in the week.` : "";
-  $("rec").innerHTML = hasRec ? recTable(r) : `<div class="empty">No betting record for this league yet.</div>`;
+  $("playlist").innerHTML = plays.length ? plays.map(playCard).join("") : `<div class="empty">${hasLines ? "No plays right now: the model and Vegas agree closely on the upcoming games." : "Vegas lines aren't available for this league yet."}</div>`;
 
   let html = "", last = "", buf = "";
   const flush = () => { if (buf) html += `<div class="scroll"><table><thead><tr><th>Matchup</th><th>Model score</th><th>Vegas line</th><th>Official play · model sides</th></tr></thead><tbody>${buf}</tbody></table></div>`; buf = ""; };
   d.games.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); html += `<h3>${esc(k)}</h3>`; last = k; } buf += gameRow(g); });
-  flush();
-  $("days").innerHTML = html || `<div class="empty">No games in the next few days. Check back closer to kickoff.</div>`;
+  flush(); $("days").innerHTML = html || `<div class="empty">No games in the next few days. Check back closer to kickoff.</div>`;
 
-  $("recent").innerHTML = `<table><thead><tr><th>Game</th><th>Model</th><th>Final</th><th>Vegas spread</th><th>Winner pick</th></tr></thead><tbody>${d.recent.map(x =>
-    `<tr><td>${esc(x.away)} @ ${esc(x.home)}<small>${x.date}</small></td><td>${Math.round(x.pred_away)}–${Math.round(x.pred_home)}</td><td>${x.away_pts}–${x.home_pts}</td>
-     <td>${x.vegas_spread == null ? "n/a" : x.vegas_spread === 0 ? "PK" : x.vegas_spread > 0 ? esc(x.home) + " −" + tr(x.vegas_spread) : esc(x.away) + " −" + tr(-x.vegas_spread)}</td>
-     <td class="${x.correct ? "pos" : x.correct === false ? "neg" : ""}">${x.correct ? "Right" : x.correct === false ? "Missed" : "Tie"}</td></tr>`).join("")}</tbody></table>`;
+  const b = d.backtest_record, ss = (d.backtest_seasons || []).map(String);
+  if (b && b.overall.all.w + b.overall.all.l > 0) {
+    $("btlead").textContent = `What the same rules would have done in the ${ss.join(" and ")} seasons. Each season was predicted by a model trained only on earlier seasons, with every game predicted before it was played.`;
+    $("bstats").innerHTML = stats(b.overall.all, "Backtest record, both seasons"); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss);
+  } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; $("bstats").innerHTML = $("bchart").innerHTML = $("btable").innerHTML = ""; }
 }
-
+function route() {
+  const bt = location.hash === "#backtest"; $("v-main").hidden = bt; $("v-bt").hidden = !bt;
+  if (bt) window.scrollTo(0, 0); else if (location.hash.length > 1) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+}
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { L = t.dataset.l;
   document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t)); render(); }));
+window.addEventListener("hashchange", route);
 Promise.all([load("nfl"), load("cfb")]).then(() => {
   if (!D.nfl && D.cfb) { L = "cfb"; document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x.dataset.l === "cfb")); }
-  render(); });
+  render(); route(); });
 </script>
 </body>
 </html>
