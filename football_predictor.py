@@ -1227,15 +1227,12 @@ def play_frame(allr, games):
     return out
 
 
-def backtest_block(pf, allr):
+def backtest_block(pf):
     def three(g):
         return {"all": rec(g.res, g.units), "spread": rec(g[g.type == "spread"].res, g[g.type == "spread"].units),
                 "total": rec(g[g.type == "total"].res, g[g.type == "total"].units)}
-    d = allr[allr.mkt_spread.notna()]
-    es = d.pred_margin - d.mkt_spread
     ser = pf.groupby(pf.date.dt.strftime("%Y-%m-%d")).net.sum().cumsum()
     return {"overall": three(pf), "by_season": {str(int(k)): three(g) for k, g in pf.groupby("season")},
-            "all_spreads": rec(np.where(es > 0, 1, -1) * np.sign(d.actual_margin - d.mkt_spread)),
             "series": [[k, round(float(v), 2)] for k, v in ser.items()]}
 
 
@@ -1367,20 +1364,30 @@ def cmd_export(args):
                              "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
                              **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)})
 
-    allr = run_backtest(lg, games, feats, cols, args.model, args.test_seasons, wu)
-    rec = allr.join(games[["date", "home", "away", "home_pts", "away_pts"]]).sort_values("date").tail(30)
+    allr = run_backtest(lg, games, feats, cols, args.model, max(args.test_seasons, 4), wu)
+    recent_df = allr.join(games[["date", "home", "away", "home_pts", "away_pts"]]).sort_values("date").tail(30)
     recent = [{"date": r.date.strftime("%Y-%m-%d"), "home": r.home, "away": r.away,
                "pred_home": r.pred_home, "pred_away": r.pred_away,
                "home_pts": r.home_pts, "away_pts": r.away_pts,
                "vegas_spread": r.mkt_spread, "pred_margin": r.pred_margin,
                "correct": None if r.actual_margin == 0 else bool((r.pred_margin > 0) == (r.actual_margin > 0))}
-              for r in rec.iloc[::-1].itertuples()]
+              for r in recent_df.iloc[::-1].itertuples()]
     by_season = {str(int(s)): score_block(d) for s, d in allr.groupby("season")}
     by_season["ALL"] = score_block(allr)
 
-    seasons2 = [current_season() - 2, current_season() - 1]   # the two most recent completed seasons
+    seasons2 = [current_season() - 3, current_season() - 2, current_season() - 1]   # three most recent completed seasons
     a2 = allr[allr.season.isin(seasons2)]
-    bt2 = backtest_block(play_frame(a2, games), a2)
+    bt2 = backtest_block(play_frame(a2, games))
+    ytd_season = current_season()
+    g26 = games[games.season == ytd_season]
+    done_wk = [w for w, g in g26.groupby("week") if g.home_pts.notna().all() and g.away_pts.notna().all()]
+    a26 = allr[(allr.season == ytd_season) & games.loc[allr.index, "week"].isin(done_wk)]   # only fully played weeks
+    pf26 = play_frame(a26, games)
+    bt_ytd = backtest_block(pf26) if len(pf26) else None
+    if bt_ytd:
+        bt_ytd["by_week"] = [{"week": int(w), **rec(g.res, g.units)} for w, g in pf26.groupby("week")]
+        bt_ytd["season"] = ytd_season
+        bt_ytd["weeks_done"] = len(done_wk)
     now = pd.Timestamp.now("UTC")
     upc = (~played) & games.mkt_spread.notna() & (games.date >= today - pd.Timedelta(days=1))
     cands = []
@@ -1398,7 +1405,7 @@ def cmd_export(args):
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
-        "games": upcoming, "recent": recent, "backtest": by_season, "backtest_record": bt2, "backtest_seasons": seasons2, "live": live, "stats_season": stats_season, "stats_pool": pool_n,
+        "games": upcoming, "recent": recent, "backtest": by_season, "backtest_record": bt2, "backtest_ytd": bt_ytd, "backtest_seasons": seasons2, "live": live, "stats_season": stats_season, "stats_pool": pool_n,
         "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG, "top_n": TOP_N}})
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
