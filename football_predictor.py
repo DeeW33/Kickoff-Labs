@@ -1075,6 +1075,108 @@ def _kickoff(r):
     return r.date.strftime("%Y-%m-%d")
 
 
+def _gid(x):
+    if isinstance(x, (int, float, np.integer, np.floating)) and not pd.isna(x):
+        return str(int(x))
+    return str(x)
+
+
+def _before_kickoff(k, now):
+    return pd.Timestamp(k) > now if len(k) > 10 else pd.Timestamp(k).date() > now.date()
+
+
+def grade_pick(e, hp, ap):
+    if e["type"] == "spread":
+        d = ((hp - ap) if e["team"] == e["home"] else (ap - hp)) + e["line"]
+    else:
+        tot = hp + ap
+        d = tot - e["line"] if e["side"] == "Over" else e["line"] - tot
+    res = 1 if d > 0 else -1 if d < 0 else 0
+    return res, e["units"] * (WIN_UNITS if res == 1 else -1.0 if res == -1 else 0.0)
+
+
+def update_pick_log(path, league, upcoming, games, now):
+    """Append new official plays (once, at the line when first posted, only before kickoff), grade finished ones."""
+    log = json.load(open(path)) if os.path.exists(path) else []
+    have = {e["id"] for e in log}
+    for u in upcoming:
+        if not _before_kickoff(u["kickoff"], now):
+            continue
+        for typ in ("spread", "total"):
+            p = u.get(f"{typ}_play")
+            pid = f"{u['game_id']}|{typ}"
+            if p and pid not in have:
+                log.append(_clean({"id": pid, "type": typ, "game_id": u["game_id"], "league": league,
+                                   "kickoff": u["kickoff"], "away": u["away"], "home": u["home"],
+                                   "team": p.get("team"), "side": p.get("side"), "line": p["line"],
+                                   "edge": p["edge"], "units": p["units"], "pred_away": u["pred_away"],
+                                   "pred_home": u["pred_home"], "status": "pending",
+                                   "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}))
+    fin = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
+    for e in log:
+        if e["status"] == "graded" or e["game_id"] not in fin.index:
+            continue
+        hp, ap = fin.at[e["game_id"], "home_pts"], fin.at[e["game_id"], "away_pts"]
+        if pd.isna(hp) or pd.isna(ap):
+            continue
+        res, net = grade_pick(e, float(hp), float(ap))
+        e.update(status="graded", home_pts=float(hp), away_pts=float(ap), result=res, net=round(net, 3))
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(log, f, indent=1)
+
+    done = sorted([e for e in log if e["status"] == "graded"], key=lambda e: e["kickoff"])
+    pend = sorted([e for e in log if e["status"] == "pending"], key=lambda e: e["kickoff"])
+
+    def sub(t=None):
+        xs = [e for e in done if t in (None, e["type"])]
+        return rec([e["result"] for e in xs], [e["units"] for e in xs])
+    series, cum = [], 0.0
+    for e in done:
+        cum += e["net"]
+        day = e["kickoff"][:10]
+        if series and series[-1][0] == day:
+            series[-1][1] = round(cum, 2)
+        else:
+            series.append([day, round(cum, 2)])
+    return {"record": {"all": sub(), "spread": sub("spread"), "total": sub("total")}, "series": series,
+            "picks": pend + done[::-1][:50], "pending": len(pend),
+            "since": min([e["logged_at"][:10] for e in log], default=None)}
+
+
+def play_frame(allr, games):
+    """Every official play the rules would have made, graded (for the backtest)."""
+    d = allr[allr.mkt_spread.notna()].copy()
+    d["date"] = games.loc[d.index, "date"]
+    es = d.pred_margin - d.mkt_spread
+    sp = d[es.abs() >= EDGE_PLAY].copy()
+    sp["type"] = "spread"
+    sp["res"] = np.where(es[sp.index] > 0, 1, -1) * np.sign(sp.actual_margin - sp.mkt_spread)
+    sp["units"] = np.where(es[sp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
+    t = d[d.mkt_total.notna()]
+    et = t.pred_total - t.mkt_total
+    tp = t[et.abs() >= EDGE_PLAY].copy()
+    tp["type"] = "total"
+    tp["res"] = np.where(et[tp.index] > 0, 1, -1) * np.sign(tp.actual_total - tp.mkt_total)
+    tp["units"] = np.where(et[tp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
+    cols = ["date", "season", "type", "res", "units"]
+    out = pd.concat([sp[cols], tp[cols]]).sort_values("date")
+    out["net"] = out.units * np.where(out.res == 1, WIN_UNITS, np.where(out.res == -1, -1.0, 0.0))
+    return out
+
+
+def backtest_block(pf, allr):
+    def three(g):
+        return {"all": rec(g.res, g.units), "spread": rec(g[g.type == "spread"].res, g[g.type == "spread"].units),
+                "total": rec(g[g.type == "total"].res, g[g.type == "total"].units)}
+    d = allr[allr.mkt_spread.notna()]
+    es = d.pred_margin - d.mkt_spread
+    ser = pf.groupby(pf.date.dt.strftime("%Y-%m-%d")).net.sum().cumsum()
+    return {"overall": three(pf), "by_season": {str(int(k)): three(g) for k, g in pf.groupby("season")},
+            "all_spreads": rec(np.where(es > 0, 1, -1) * np.sign(d.actual_margin - d.mkt_spread)),
+            "series": [[k, round(float(v), 2)] for k, v in ser.items()]}
+
+
 def ml_info(r):
     if pd.isna(r.mkt_ml_home) or pd.isna(r.mkt_ml_away):
         return {"ml_implied_home": None, "ml_value": None}
@@ -1108,7 +1210,7 @@ def cmd_export(args):
             if "weather" in gc:
                 f = feats.loc[idx]
                 wx = {"dome": bool(f.is_dome), "temp": f.temp, "wind": f.wind, "known": bool(f.weather_known)}
-            upcoming.append({"kickoff": _kickoff(r), "week": int(r.week), "away": r.away, "home": r.home,
+            upcoming.append({"kickoff": _kickoff(r), "week": int(r.week), "game_id": _gid(r.game_id), "away": r.away, "home": r.home,
                              "neutral": bool(r.neutral), "pred_away": r.pred_away, "pred_home": r.pred_home,
                              "pred_margin": r.pred_margin, "pred_total": r.pred_total,
                              "home_win_prob": r.home_win_prob, "weather": wx,
@@ -1127,10 +1229,15 @@ def cmd_export(args):
     by_season = {str(int(s)): score_block(d) for s, d in allr.groupby("season")}
     by_season["ALL"] = score_block(allr)
 
+    seasons2 = [current_season() - 2, current_season() - 1]   # the two most recent completed seasons
+    a2 = allr[allr.season.isin(seasons2)]
+    bt2 = backtest_block(play_frame(a2, games), a2)
+    live = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, upcoming, games, pd.Timestamp.now("UTC"))
+
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
-        "games": upcoming, "recent": recent, "backtest": by_season, "record": build_record(allr),
+        "games": upcoming, "recent": recent, "backtest": by_season, "record": build_record(allr), "backtest_record": bt2, "backtest_seasons": seasons2, "live": live,
         "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG}})
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
@@ -1149,6 +1256,7 @@ def main():
     ap.add_argument("--warmup", type=int, default=None, help="Elo burn-in seasons excluded from training")
     ap.add_argument("--days", type=int, default=7, help="predict games in the next N days")
     ap.add_argument("--drop", default="", help="comma list: advanced,qb,injuries,weather,roster")
+    ap.add_argument("--log", help="(export) pick log path, default data/picks_<league>.json")
     ap.add_argument("--out", help="(export) output JSON path, default data/<league>.json")
     ap.add_argument("--use-market", action="store_true", help="(NFL) add Vegas spread/total as features")
     args = ap.parse_args()
