@@ -158,6 +158,10 @@ const ROWS = [["Scoring"],["Points per game","ppg"],["Points allowed per game","
   ["Pass EPA per play, offense","pass_epa_off"],["Pass EPA per play allowed","pass_epa_def"],["Rush EPA per play, offense","rush_epa_off"],["Rush EPA per play allowed","rush_epa_def"],
   ["Situational"],["3rd-down conversion","third_off","p"],["3rd-down conversion allowed","third_def","p"],["Turnover margin per game","tov_margin"]];
 const fmtS = (k, v, t) => t === "p" ? pct1(v) : /epa|tov/.test(k) ? (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) : k.startsWith("ypp") ? v.toFixed(2) : v.toFixed(1);
+function playersOut(c, starter, kind) {
+  const l = c.report.players.filter(p => p.starter === starter && (kind === "out" ? p.tier === "out" : p.tier !== "out"));
+  return l.map(p => `${esc(p.name)} <small>${esc(p.pos)}${kind === "dq" ? " · " + esc(p.status) : ""}</small>`).join(", ");
+}
 function matchupPanel(g) {
   const a = g.away_info, h = g.home_info; if (!a || !h) return "";
   const cell = (c, k, t) => { const s = c.s[k]; return s ? `${fmtS(k, s.v, t)}${s.r ? `<small>${ord(s.r)}</small>` : ""}` : "—"; };
@@ -169,12 +173,15 @@ function matchupPanel(g) {
     rows += `<tr><td>${label}</td><td class="${both && sa.r < sh.r ? "win" : ""}">${cell(a, k, t)}</td><td class="${both && sh.r < sa.r ? "win" : ""}">${cell(h, k, t)}</td></tr>`;
   }
   const ctxRows = [["Record this season", c => `${c.record} (${c.games} games)`], ["Elo rating", c => c.elo == null ? null : Math.round(c.elo)], ["Days of rest", c => c.rest == null ? null : c.rest],
-    ["Expected QB", c => c.qb ? `${esc(c.qb.name || "Unknown")}${c.qb.flag ? "<small>listed out; backup assumed</small>" : ""}` : null],
+    ["Expected QB", c => c.qb ? `${esc(c.qb.name || "Unknown")}${c.qb.flag ? `<small>${c.qb.listed_out ? esc(c.qb.listed_out) + " is out" : "starter out; backup assumed"}</small>` : ""}` : null],
+    ["Starters out", c => c.report ? (playersOut(c, true, "out") || "None") : null],
+    ["Doubtful / questionable starters", c => c.report ? (playersOut(c, true, "dq") || "None") : null],
+    ["Other players out", c => c.report ? (playersOut(c, false, "out") || "None") : null],
     ["Injury load", c => c.inj ? (Object.entries(c.inj).filter(([, v]) => v > 0).map(([k, v]) => `${k.toUpperCase()} ${tr(v)}`).join(", ") || "None listed") : null]];
   let ctx = `<tr class="grp"><td colspan="3">Context</td></tr>`;
   for (const [label, f] of ctxRows) { const x = f(a), y = f(h); if (x != null || y != null) ctx += `<tr><td>${label}</td><td>${x ?? "—"}</td><td>${y ?? "—"}</td></tr>`; }
   return `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
-    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. EPA is expected points added per play (college uses the similar PPA). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
+    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. EPA is expected points added per play (college uses the similar PPA). Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
 }
 function playCard(x) {
   const g = x.g, p = x.p, spread = x.type === "spread";
