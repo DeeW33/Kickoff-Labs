@@ -120,6 +120,12 @@ ROSTER_COLS = ["home_ret_ppa", "away_ret_ppa", "home_ret_pass", "away_ret_pass",
                "home_portal_net", "away_portal_net", "home_talent", "away_talent",
                "ret_diff", "ret_pass_diff", "portal_diff", "talent_diff",
                "ret_diff_early", "ret_pass_diff_early", "portal_diff_early"]
+ADJ_COLS = ([f"{sd}_adj{k}_{s}" for sd in ("home", "away") for k in ("off", "def") for s in ADV_STATS]
+            + [f"edge_adj_{s}" for s in ADV_STATS]
+            + ["home_adj_pf", "home_adj_pa", "away_adj_pf", "away_adj_pa", "exp_adj_margin", "exp_adj_total"])
+TOV_COLS = ["home_tov_comm", "home_tov_forced", "away_tov_comm", "away_tov_forced", "tov_edge"]
+INJW_COLS = [f"{sd}_injw_{g}" for sd in ("home", "away") for g in INJ_GROUPS] + ["injw_total_diff"]
+NEW_GROUPS = ("adjusted", "turnovers", "injw")   # groups added in v3
 MARKET_COLS = ["mkt_spread", "mkt_total"]
 
 GAME_COLS = ["date", "season", "week", "game_id", "gametime", "home", "away", "home_pts", "away_pts",
@@ -187,6 +193,9 @@ class Context:
         self.qb_out = {}          # (season, week, team) -> {gsis_id} of QBs Out/Doubtful
         self.box = None           # per game/side yards, plays, 3rd downs, turnovers (NFL)
         self.inj_counts = None    # DataFrame season, week, team, qb, ol, skill, def
+        self.injw_counts = None   # same, but each injury weighted by the player's recent snap share
+        self.snap_hist = None     # pfr_id -> (sorted season*100+week keys, snap shares)
+        self.gsis2pfr = {}
         self.team_season = {}     # (season, team) -> dict(ret_ppa, ret_pass, portal_net, talent_z)
         self.talent_z = {}
         self.season_means = {}
@@ -302,6 +311,52 @@ POS_GROUP = {"QB": "qb",
 STATUS_W = {"Out": 1.0, "Doubtful": 0.75, "Questionable": 0.25}
 
 
+SNAP_FIRST = 2012          # nflverse snap counts start in 2012, so weighted injuries start in 2013
+DEFAULT_IMPORTANCE = 0.15  # snap share assumed for a player with no snap history (e.g. a rookie)
+
+
+def load_nfl_snaps(ctx: Context, end: int):
+    frames = []
+    for yr in range(SNAP_FIRST, end + 1):
+        def fetch(yr=yr):
+            raw = download(f"{NFLVERSE}/snap_counts/snap_counts_{yr}.csv")
+            if raw is None:
+                return None
+            return pd.read_csv(io.BytesIO(raw), usecols=["season", "week", "pfr_player_id", "offense_pct", "defense_pct"])
+
+        d = cached(f"nfl_snap_{yr}.pkl", fetch, refresh=yr >= end)
+        if d is not None:
+            frames.append(d)
+
+    def fetch_players():
+        raw = download(f"{NFLVERSE}/players/players.csv")
+        return None if raw is None else pd.read_csv(io.BytesIO(raw), usecols=["gsis_id", "pfr_id"], low_memory=False)
+
+    pl = cached("nfl_players.pkl", fetch_players, refresh=True)   # refresh: new rookies appear every season
+    if pl is None:
+        pl = cached("nfl_players.pkl", fetch_players)
+    if not frames or pl is None:
+        warn("snap counts or player-id table unavailable; weighted injuries disabled")
+        return
+    sn = pd.concat(frames, ignore_index=True).dropna(subset=["pfr_player_id"])
+    sn["key"] = sn.season.astype(int) * 100 + sn.week.astype(int)
+    sn["share"] = sn[["offense_pct", "defense_pct"]].max(axis=1).fillna(0.0)
+    sn = sn.sort_values("key")
+    ctx.snap_hist = {pid: (g.key.to_numpy(), g.share.to_numpy()) for pid, g in sn.groupby("pfr_player_id")}
+    pl = pl.dropna()
+    ctx.gsis2pfr = dict(zip(pl.gsis_id, pl.pfr_id))
+
+
+def snap_importance(ctx: Context, gsis, key):
+    """Average snap share over the player's last 4 games BEFORE the report week (healthy-time role)."""
+    h = ctx.snap_hist.get(ctx.gsis2pfr.get(gsis))
+    if h is None:
+        return DEFAULT_IMPORTANCE
+    keys, shares = h
+    i = int(np.searchsorted(keys, key, side="left"))
+    return float(shares[max(0, i - 4):i].mean()) if i else DEFAULT_IMPORTANCE
+
+
 def load_nfl_injuries(ctx: Context, end: int):
     frames = []
     for yr in range(2009, end + 1):
@@ -331,6 +386,18 @@ def load_nfl_injuries(ctx: Context, end: int):
     counts["season"] = counts.season.astype(int)
     counts["week"] = counts.week.astype(int)
     ctx.inj_counts = counts
+    if ctx.snap_hist:
+        dd = d[d.season >= SNAP_FIRST + 1].copy()
+        dd["imp"] = [snap_importance(ctx, gs, int(se) * 100 + int(wk))
+                     for gs, se, wk in zip(dd.gsis_id, dd.season, dd.week)]
+        dd["wi"] = dd.w * dd.imp
+        cw = (dd.pivot_table(index=["season", "week", "team"], columns="grp", values="wi",
+                             aggfunc="sum", fill_value=0.0).reset_index())
+        for g in INJ_GROUPS:
+            if g not in cw:
+                cw[g] = 0.0
+        cw["season"], cw["week"] = cw.season.astype(int), cw.week.astype(int)
+        ctx.injw_counts = cw
     for r in d[(d.grp == "qb") & (d.w >= 0.75)].itertuples(index=False):
         ctx.qb_out.setdefault((int(r.season), int(r.week), r.team), set()).add(r.gsis_id)
 
@@ -412,8 +479,57 @@ def load_cfb(start: int, end: int, key: str, ctx: Context) -> pd.DataFrame:
 
     df = _cfb_advanced(df, start, end, key)
     df = _cfb_weather(df, start, end, key)
+    df = _cfb_lines(df, start, end, key)
     _cfb_roster(ctx, start, end, key)
     return df
+
+
+CFB_BOOKS = ("consensus", "DraftKings", "ESPN Bet", "Bovada", "teamrankings")   # preferred order
+
+
+def pick_cfb_line(lines):
+    """One book's line from CFBD's per-game list: first preferred book that has a spread, else the
+    median across books.  -> (home_spread (+ = home favored), total, ml_home, ml_away) or Nones."""
+    def num(x):
+        try:
+            v = float(x)
+            return None if v != v else v
+        except (TypeError, ValueError):
+            return None
+    ok = [l for l in (lines or []) if num(l.get("spread")) is not None]
+    if not ok:
+        return None, None, None, None
+    by = {str(l.get("provider")): l for l in ok}
+    chosen = next((by[b] for b in CFB_BOOKS if b in by), None)
+    if chosen is not None:
+        sp = -num(chosen["spread"])                         # CFBD: negative = home favored
+        tot, mh = num(_get(chosen, "overUnder", "over_under")), num(_get(chosen, "homeMoneyline", "home_moneyline"))
+        ma = num(_get(chosen, "awayMoneyline", "away_moneyline"))
+        return sp, tot, mh, ma
+    med = lambda v: float(np.median(v)) if v else None
+    sp = -med([num(l["spread"]) for l in ok])
+    tot = med([x for x in (num(_get(l, "overUnder", "over_under")) for l in ok) if x is not None])
+    return sp, tot, None, None
+
+
+def _cfb_lines(df, start, end, key):
+    """Betting lines from CFBD /lines (spread, total, moneylines) -> mkt_* columns."""
+    recs = []
+    for yr in range(start, end + 1):
+        def fetch(yr=yr):
+            print(f"  downloading CFB betting lines {yr}", file=sys.stderr)
+            return cfbd_get("/lines", {"year": yr, "seasonType": "both"}, key, optional=True)
+        for g in cached(f"cfb_lines_{yr}.pkl", fetch, refresh=yr >= end) or []:
+            sp, tot, mh, ma = pick_cfb_line(g.get("lines"))
+            if sp is not None:
+                recs.append({"game_id": _get(g, "id", "gameId"), "mkt_spread": sp, "mkt_total": tot,
+                             "mkt_ml_home": mh, "mkt_ml_away": ma})
+    if not recs:
+        warn("no CFB betting lines available; CFB plays need them")
+        return df
+    ln = pd.DataFrame(recs).dropna(subset=["game_id"]).drop_duplicates("game_id")
+    return df.drop(columns=["mkt_spread", "mkt_total", "mkt_ml_home", "mkt_ml_away"], errors="ignore") \
+             .merge(ln, on="game_id", how="left")
 
 
 def _cfb_advanced(df, start, end, key):
@@ -530,6 +646,12 @@ class TeamState:
         self.season_g = 0
         self.off = {s: deque(maxlen=adv_window) for s in ADV_STATS}
         self.dfn = {s: deque(maxlen=adv_window) for s in ADV_STATS}  # stats ALLOWED by the defense
+        self.aoff = {s: deque(maxlen=adv_window) for s in ADV_STATS}   # opponent-adjusted offense
+        self.adef = {s: deque(maxlen=adv_window) for s in ADV_STATS}   # opponent-adjusted stats allowed
+        self.apf = deque(maxlen=adv_window)
+        self.apa = deque(maxlen=adv_window)
+        self.tcom = deque(maxlen=16)   # turnovers committed per game
+        self.tfor = deque(maxlen=16)   # turnovers forced per game
         self.last_qb = None
 
 
@@ -542,6 +664,7 @@ class Builder:
     QB_K = 200.0          # pseudo-dropbacks of prior
     QB_PRIOR = -0.05      # EPA/dropback prior for an unproven QB
     BACKUP_VAL = -0.12    # assumed value of an unknown replacement QB
+    TOV_SHRINK = 8.0      # pseudo-games of league-average turnovers (turnover luck rarely repeats)
 
     def __init__(self, lg: League, ctx: Context, groups: set, talent_elo: bool = True):
         self.lg, self.ctx, self.groups = lg, ctx, groups
@@ -551,6 +674,10 @@ class Builder:
         self.adv_sum = {s: 0.0 for s in ADV_STATS}
         self.adv_cnt = {s: 0 for s in ADV_STATS}
         self.qb_stats = {}  # qb_id -> [n, epa_sum]
+        self.tov_sum, self.tov_n = 1.3 * 50, 50
+        self.tov_map = {}
+        if ctx.box is not None:
+            self.tov_map = {(r.game_id, r.side): r.tov for r in ctx.box.itertuples(index=False)}
 
     @property
     def avg(self):
@@ -622,6 +749,36 @@ class Builder:
                              (f[f"away_off_{s}"] + f[f"home_def_{s}"])
         return f
 
+    def _adj(self, ht, at):
+        f = {}
+        for sd, t in (("home", ht), ("away", at)):
+            for s in ADV_STATS:
+                f[f"{sd}_adjoff_{s}"] = self._shrunk(t.aoff[s], s)
+                f[f"{sd}_adjdef_{s}"] = self._shrunk(t.adef[s], s)
+        for s in ADV_STATS:
+            f[f"edge_adj_{s}"] = (f[f"home_adjoff_{s}"] + f[f"away_adjdef_{s}"]) - \
+                                 (f[f"away_adjoff_{s}"] + f[f"home_adjdef_{s}"])
+        avg, k = self.avg, self.SHRINK
+
+        def lvl(dq):
+            return (sum(dq) + k * avg) / (len(dq) + k)
+        f["home_adj_pf"], f["home_adj_pa"] = lvl(ht.apf), lvl(ht.apa)
+        f["away_adj_pf"], f["away_adj_pa"] = lvl(at.apf), lvl(at.apa)
+        he = (f["home_adj_pf"] + f["away_adj_pa"]) / 2
+        ae = (f["away_adj_pf"] + f["home_adj_pa"]) / 2
+        f["exp_adj_margin"], f["exp_adj_total"] = he - ae, he + ae
+        return f
+
+    def _tov(self, ht, at):
+        m, k = self.tov_sum / self.tov_n, self.TOV_SHRINK
+
+        def lv(dq):
+            return (sum(dq) + k * m) / (len(dq) + k)
+        f = {"home_tov_comm": lv(ht.tcom), "home_tov_forced": lv(ht.tfor),
+             "away_tov_comm": lv(at.tcom), "away_tov_forced": lv(at.tfor)}
+        f["tov_edge"] = (f["home_tov_forced"] - f["home_tov_comm"]) - (f["away_tov_forced"] - f["away_tov_comm"])
+        return f
+
     def _qb_value(self, qb):
         if qb is None:
             return self.BACKUP_VAL, 0.0
@@ -671,6 +828,14 @@ class Builder:
         ht.elo += delta
         at.elo -= delta
 
+        if "adjusted" in self.groups:   # compare each result with what the opponent usually allows / scores
+            avg = self.avg
+            hpf_l, hpa_l = self._roll(ht)[:2]
+            apf_l, apa_l = self._roll(at)[:2]
+            ht.apf.append(hp - (apa_l - avg))
+            ht.apa.append(ap - (apf_l - avg))
+            at.apf.append(ap - (hpa_l - avg))
+            at.apa.append(hp - (hpf_l - avg))
         a = self.EWM_ALPHA
         for t, pf, pa in ((ht, hp, ap), (at, ap, hp)):
             t.pf.append(pf)
@@ -685,6 +850,14 @@ class Builder:
         if "advanced" in self.groups:
             for s in ADV_STATS:
                 hv, av = getattr(g, f"h_{s}"), getattr(g, f"a_{s}")
+                if "adjusted" in self.groups:   # all reads happen before this game's raw stats are appended
+                    m = self.adv_mean(s)
+                    if not pd.isna(hv):
+                        ht.aoff[s].append(hv - (self._shrunk(at.dfn[s], s) - m))
+                        at.adef[s].append(hv - (self._shrunk(ht.off[s], s) - m))
+                    if not pd.isna(av):
+                        at.aoff[s].append(av - (self._shrunk(ht.dfn[s], s) - m))
+                        ht.adef[s].append(av - (self._shrunk(at.off[s], s) - m))
                 if not pd.isna(hv):
                     ht.off[s].append(hv)
                     at.dfn[s].append(hv)
@@ -695,6 +868,16 @@ class Builder:
                     ht.dfn[s].append(av)
                     self.adv_sum[s] += av
                     self.adv_cnt[s] += 1
+
+        if "turnovers" in self.groups:
+            th, ta = self.tov_map.get((g.game_id, "h")), self.tov_map.get((g.game_id, "a"))
+            if th is not None and ta is not None:
+                ht.tcom.append(th)
+                ht.tfor.append(ta)
+                at.tcom.append(ta)
+                at.tfor.append(th)
+                self.tov_sum += th + ta
+                self.tov_n += 2
 
         if "qb" in self.groups:
             for qb, n, e in self.ctx.qb_log.get(g.game_id, ()):
@@ -714,6 +897,10 @@ class Builder:
             f = self._base(g, ht, at)
             if "advanced" in self.groups:
                 f.update(self._adv(ht, at))
+            if "adjusted" in self.groups:
+                f.update(self._adj(ht, at))
+            if "turnovers" in self.groups:
+                f.update(self._tov(ht, at))
             if "qb" in self.groups:
                 f.update(self._qb(g, ht, at))
             if "roster" in self.groups:
@@ -734,6 +921,21 @@ def injury_features(games: pd.DataFrame, inj: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame(out, index=games.index)
     out["inj_total_diff"] = (out[[f"home_inj_{g}" for g in INJ_GROUPS]].sum(axis=1)
                              - out[[f"away_inj_{g}" for g in INJ_GROUPS]].sum(axis=1))
+    return out
+
+
+def injw_features(games: pd.DataFrame, inj: pd.DataFrame) -> pd.DataFrame:
+    out = {}
+    for sd in ("home", "away"):
+        m = games[["season", "week", sd]].merge(
+            inj, how="left", left_on=["season", "week", sd], right_on=["season", "week", "team"])
+        cov = (games.season >= SNAP_FIRST + 1).to_numpy()      # earlier seasons have no snap history -> unknown
+        for g in INJ_GROUPS:
+            v = m[g].to_numpy(dtype=float)
+            out[f"{sd}_injw_{g}"] = np.where(cov, np.nan_to_num(v, nan=0.0), np.nan)
+    out = pd.DataFrame(out, index=games.index)
+    out["injw_total_diff"] = (out[[f"home_injw_{g}" for g in INJ_GROUPS]].sum(axis=1, min_count=1)
+                              - out[[f"away_injw_{g}" for g in INJ_GROUPS]].sum(axis=1, min_count=1))
     return out
 
 
@@ -812,6 +1014,8 @@ def prepare(args, forecast_days=None):
     if args.league == "nfl":
         games = load_nfl(start)
         games = load_nfl_pbp(games, ctx, start, end)
+        if "injw" in getattr(args, "with_set", set()):   # only needed when weighted injuries are enabled
+            load_nfl_snaps(ctx, end)
         load_nfl_injuries(ctx, end)
         if forecast_days is not None:
             games = apply_forecasts(games.sort_values("date").reset_index(drop=True), forecast_days)
@@ -835,10 +1039,18 @@ def featurize(lg, games, ctx, talent_elo=True):
         groups.add("qb")
     if ctx.team_season:
         groups.add("roster")
+    if "advanced" in groups:
+        groups.add("adjusted")
+    if ctx.box is not None:
+        groups.add("turnovers")
     feats = Builder(lg, ctx, groups, talent_elo).run(games)
     gc = {"base": BASE_COLS}
     if "advanced" in groups:
         gc["advanced"] = ADV_COLS
+    if "adjusted" in groups:
+        gc["adjusted"] = ADJ_COLS
+    if "turnovers" in groups:
+        gc["turnovers"] = TOV_COLS
     if "qb" in groups:
         gc["qb"] = QB_COLS
     if "roster" in groups:
@@ -846,6 +1058,9 @@ def featurize(lg, games, ctx, talent_elo=True):
     if ctx.inj_counts is not None:
         feats = feats.join(injury_features(games, ctx.inj_counts))
         gc["injuries"] = INJ_COLS
+    if ctx.injw_counts is not None:
+        feats = feats.join(injw_features(games, ctx.injw_counts))
+        gc["injw"] = INJW_COLS
     wx = weather_features(games)
     if wx is not None:
         feats = feats.join(wx)
@@ -865,7 +1080,8 @@ def select_cols(gc, include):
 
 
 def chosen_groups(gc, args):
-    inc = [g for g in gc if g not in ("base", "market") and g not in args.drop_set]
+    inc = [g for g in gc if g not in ("base", "market") and g not in args.drop_set
+           and (g not in NEW_GROUPS or g in args.with_set)]   # v3 groups are opt-in: they did not beat the v2 model
     if args.use_market and "market" in gc:
         inc.append("market")
     return inc
@@ -935,12 +1151,14 @@ def cmd_backtest(args):
 
 
 def cmd_ablate(args):
+    args.with_set = set(NEW_GROUPS)   # the ablation always evaluates the opt-in groups
     lg, games, ctx = prepare(args)
     feats, gc = featurize(lg, games, ctx)
     feats_nt = featurize(lg, games, ctx, talent_elo=False)[0] if "roster" in gc else feats
     avail = [g for g in gc if g not in ("base", "market")]
     wu = args.warmup if args.warmup is not None else lg.default_warmup
-    configs = [("base only", [])] + [(f"base + {g}", [g]) for g in avail] + [("ALL groups", avail)] + \
+    configs = [("base only", [])] + [(f"base + {g}", [g]) for g in avail] + [("ALL groups", avail),
+               ("PREVIOUS model (no new groups)", [g for g in avail if g not in NEW_GROUPS])] + \
               [(f"ALL - {g}", [x for x in avail if x != g]) for g in avail]
     rows, vegas = {}, None
     for name, inc in configs:
@@ -1426,9 +1644,11 @@ def main():
     ap.add_argument("--drop", default="", help="comma list: advanced,qb,injuries,weather,roster")
     ap.add_argument("--log", help="(export) pick log path, default data/picks_<league>.json")
     ap.add_argument("--out", help="(export) output JSON path, default data/<league>.json")
+    ap.add_argument("--with", dest="with_groups", default="", help="opt-in feature groups: adjusted,turnovers,injw")
     ap.add_argument("--use-market", action="store_true", help="(NFL) add Vegas spread/total as features")
     args = ap.parse_args()
     args.drop_set = {x.strip() for x in args.drop.split(",") if x.strip()}
+    args.with_set = {x.strip() for x in args.with_groups.split(",") if x.strip()}
     {"backtest": cmd_backtest, "ablate": cmd_ablate, "predict": cmd_predict, "export": cmd_export}[args.command](args)
 
 
