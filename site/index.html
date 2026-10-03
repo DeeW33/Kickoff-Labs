@@ -44,6 +44,10 @@ th,td{padding:.55rem .75rem;text-align:left;border-bottom:1px solid var(--line);
 th{color:var(--mute);font-weight:600;background:var(--panel2);font-size:.8rem}tr:last-child td{border-bottom:0}
 td small{display:block;color:var(--mute);font-size:.78rem}
 .star{color:var(--amber);font-weight:700;display:block}.sim{color:var(--mute);display:block}.mlv{color:var(--go);font-size:.8rem;display:block}
+.mbtn{display:block;margin-top:.35rem;font:inherit;font-size:.78rem;color:var(--go);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+tr.det>td{background:var(--bg);padding:.8rem .75rem}.more{margin-top:.6rem}.more summary{cursor:pointer;color:var(--go);font-size:.88rem}
+.cmp{min-width:0;font-size:.84rem;background:var(--panel)}.cmp td,.cmp th{padding:.3rem .6rem}.cmp td+td,.cmp th+th{text-align:right}
+.cmp .grp td{background:var(--panel2);color:var(--mute);font-weight:600;text-align:left}.cmp .win{font-weight:700;color:var(--go)}.cmp small{display:inline;margin-left:.3rem}
 .empty{padding:1.3rem;border:1px dashed var(--line);border-radius:10px;color:var(--mute)}
 .back{color:var(--mute);text-decoration:none;font-size:.9rem;display:inline-block;margin-top:1rem}
 footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem}
@@ -143,14 +147,38 @@ function stats(o, label) {
 }
 function wx(g) { const w = g.weather; if (!w) return ""; return w.dome ? `<span class="chip">Indoors</span>` : `<span class="chip">${Math.round(w.temp)}°F, ${Math.round(w.wind)} mph wind${w.known ? "" : " (typical)"}</span>`; }
 
+const ord = n => { const q = ["th","st","nd","rd"], v = n % 100; return n + (q[(v - 20) % 10] || q[v] || q[0]); };
+const ROWS = [["Scoring"],["Points per game","ppg"],["Points allowed per game","papg"],["Points per game, last 3","ppg_l3"],["Points allowed, last 3","papg_l3"],
+  ["Efficiency"],["Yards per play","ypp"],["Yards per play allowed","ypp_allowed"],["EPA per play, offense","epa_off"],["EPA per play allowed","epa_def"],["Success rate, offense","succ_off","p"],["Success rate allowed","succ_def","p"],
+  ["Pass EPA per play, offense","pass_epa_off"],["Pass EPA per play allowed","pass_epa_def"],["Rush EPA per play, offense","rush_epa_off"],["Rush EPA per play allowed","rush_epa_def"],
+  ["Situational"],["3rd-down conversion","third_off","p"],["3rd-down conversion allowed","third_def","p"],["Turnover margin per game","tov_margin"]];
+const fmtS = (k, v, t) => t === "p" ? pct1(v) : /epa|tov/.test(k) ? (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) : k.startsWith("ypp") ? v.toFixed(2) : v.toFixed(1);
+function matchupPanel(g) {
+  const a = g.away_info, h = g.home_info; if (!a || !h) return "";
+  const cell = (c, k, t) => { const s = c.s[k]; return s ? `${fmtS(k, s.v, t)}${s.r ? `<small>${ord(s.r)}</small>` : ""}` : "—"; };
+  let rows = "";
+  for (const [label, k, t] of ROWS) {
+    if (!k) { rows += `<tr class="grp"><td colspan="3">${label}</td></tr>`; continue; }
+    const sa = a.s[k], sh = h.s[k]; if (!sa && !sh) continue;
+    const both = sa && sh && sa.r && sh.r && sa.r !== sh.r;
+    rows += `<tr><td>${label}</td><td class="${both && sa.r < sh.r ? "win" : ""}">${cell(a, k, t)}</td><td class="${both && sh.r < sa.r ? "win" : ""}">${cell(h, k, t)}</td></tr>`;
+  }
+  const ctxRows = [["Record this season", c => `${c.record} (${c.games} games)`], ["Elo rating", c => c.elo == null ? null : Math.round(c.elo)], ["Days of rest", c => c.rest == null ? null : c.rest],
+    ["Expected QB", c => c.qb ? `${esc(c.qb.name || "Unknown")}${c.qb.flag ? "<small>listed out; backup assumed</small>" : ""}` : null],
+    ["Injury load", c => c.inj ? (Object.entries(c.inj).filter(([, v]) => v > 0).map(([k, v]) => `${k.toUpperCase()} ${tr(v)}`).join(", ") || "None listed") : null]];
+  let ctx = `<tr class="grp"><td colspan="3">Context</td></tr>`;
+  for (const [label, f] of ctxRows) { const x = f(a), y = f(h); if (x != null || y != null) ctx += `<tr><td>${label}</td><td>${x ?? "—"}</td><td>${y ?? "—"}</td></tr>`; }
+  return `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
+    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. EPA is expected points added per play (college uses the similar PPA). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
+}
 function playCard(x) {
   const g = x.g, p = x.p, spread = x.type === "spread";
   return `<article class="play"><div class="hd"><span><span class="badge">Official play · ${p.units}u</span> ${spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
     <div class="pick">${spread ? `${esc(p.team)} ${line(p.line)}` : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
     <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
-    <span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div></article>`;
+    <span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
 }
-function gameRow(g) {
+function gameRow(g, i) {
   let c = "";
   if (g.spread_play) c += `<span class="star">★ ${esc(g.spread_play.team)} ${line(g.spread_play.line)} · ${g.spread_play.units}u</span>`;
   else if (g.sim_spread) c += `<span class="sim">Sim: ${esc(g.sim_spread.team)} ${line(g.sim_spread.line)}</span>`;
@@ -159,8 +187,8 @@ function gameRow(g) {
   if (g.ml_value) { const h = g.ml_value === g.home, m = h ? g.home_win_prob : 1 - g.home_win_prob, i = h ? g.ml_implied_home : 1 - g.ml_implied_home;
     c += `<span class="mlv">ML value: ${esc(g.ml_value)} (model ${pct(m)} vs ${pct(i)} implied)</span>`; }
   const v = g.vegas_spread == null ? `<small>No line yet</small>` : `${esc(favText(g))} <small>O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"} · ML ${esc(g.home)} ${ml(g.ml_home)} / ${esc(g.away)} ${ml(g.ml_away)}</small>`;
-  return `<tr><td><b>${esc(g.away)} @ ${esc(g.home)}</b>${g.neutral ? " *" : ""}<small>${timeOf(g.kickoff)} ${wx(g)}</small></td>
-    <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${v}</td><td>${c || "—"}</td></tr>`;
+  return `<tr><td><b>${esc(g.away)} @ ${esc(g.home)}</b>${g.neutral ? " *" : ""}<small>${timeOf(g.kickoff)} ${wx(g)}</small>${g.home_info ? `<button class="mbtn" data-t="${i}">Matchup details</button>` : ""}</td>
+    <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${v}</td><td>${c || "—"}</td></tr>${g.home_info ? `<tr class="det" id="det${i}" hidden><td colspan="4">${matchupPanel(g)}</td></tr>` : ""}`;
 }
 function liveRow(e) {
   const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
@@ -195,9 +223,9 @@ function render() {
   plays.sort((a, b) => b.p.units - a.p.units || b.p.edge - a.p.edge);
   $("playlist").innerHTML = plays.length ? plays.map(playCard).join("") : `<div class="empty">${hasLines ? "No plays right now: the model and Vegas agree closely on the upcoming games." : "Vegas lines aren't available for this league yet."}</div>`;
 
-  let html = "", last = "", buf = "";
+  let html = "", last = "", buf = "", n = 0;
   const flush = () => { if (buf) html += `<div class="scroll"><table><thead><tr><th>Matchup</th><th>Model score</th><th>Vegas line</th><th>Official play · model sides</th></tr></thead><tbody>${buf}</tbody></table></div>`; buf = ""; };
-  d.games.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); html += `<h3>${esc(k)}</h3>`; last = k; } buf += gameRow(g); });
+  d.games.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); html += `<h3>${esc(k)}</h3>`; last = k; } buf += gameRow(g, n++); });
   flush(); $("days").innerHTML = html || `<div class="empty">No games in the next few days. Check back closer to kickoff.</div>`;
 
   const b = d.backtest_record, ss = (d.backtest_seasons || []).map(String);
@@ -212,6 +240,7 @@ function route() {
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { L = t.dataset.l;
   document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t)); render(); }));
+$("days").addEventListener("click", e => { const b = e.target.closest(".mbtn"); if (!b) return; const r = $("det" + b.dataset.t); r.hidden = !r.hidden; b.textContent = r.hidden ? "Matchup details" : "Hide details"; });
 window.addEventListener("hashchange", route);
 Promise.all([load("nfl"), load("cfb")]).then(() => {
   if (!D.nfl && D.cfb) { L = "cfb"; document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x.dataset.l === "cfb")); }
