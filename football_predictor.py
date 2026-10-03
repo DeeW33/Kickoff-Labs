@@ -124,7 +124,7 @@ MARKET_COLS = ["mkt_spread", "mkt_total"]
 
 GAME_COLS = ["date", "season", "week", "game_id", "gametime", "home", "away", "home_pts", "away_pts",
              "neutral", "home_class", "away_class", "mkt_spread", "mkt_total", "mkt_ml_home", "mkt_ml_away",
-             "roof", "temp", "wind", "home_qb_id", "away_qb_id"] + \
+             "roof", "temp", "wind", "home_qb_id", "away_qb_id", "home_qb_name", "away_qb_name"] + \
             [f"{sd}_{s}" for sd in ("h", "a") for s in ADV_STATS]
 
 
@@ -185,6 +185,7 @@ class Context:
     def __init__(self):
         self.qb_log = {}          # game_id -> [(qb_id, n_dropbacks, epa_sum)]
         self.qb_out = {}          # (season, week, team) -> {gsis_id} of QBs Out/Doubtful
+        self.box = None           # per game/side yards, plays, 3rd downs, turnovers (NFL)
         self.inj_counts = None    # DataFrame season, week, team, qb, ol, skill, def
         self.team_season = {}     # (season, team) -> dict(ret_ppa, ret_pass, portal_net, talent_z)
         self.talent_z = {}
@@ -205,7 +206,8 @@ class Context:
 # --------------------------------------------------------------------------- #
 
 PBP_COLS = ["game_id", "home_team", "away_team", "posteam", "pass", "rush", "epa", "success", "wp",
-            "qb_dropback", "qb_kneel", "qb_spike", "passer_player_id", "rusher_player_id"]
+            "qb_dropback", "qb_kneel", "qb_spike", "passer_player_id", "rusher_player_id",
+            "yards_gained", "third_down_converted", "third_down_failed", "interception", "fumble_lost"]
 
 
 def load_nfl(start: int) -> pd.DataFrame:
@@ -233,6 +235,8 @@ def load_nfl(start: int) -> pd.DataFrame:
         "wind": pd.to_numeric(df.get("wind"), errors="coerce"),
         "home_qb_id": df.get("home_qb_id"),
         "away_qb_id": df.get("away_qb_id"),
+        "home_qb_name": df.get("home_qb_name"),
+        "away_qb_name": df.get("away_qb_name"),
     })
     return out
 
@@ -255,11 +259,15 @@ def summarize_pbp(p: pd.DataFrame):
     db["qb_id"] = db.passer_player_id.fillna(db.rusher_player_id)
     db = db[db.qb_id.notna()]
     qb = (db.groupby(["game_id", "qb_id"]).epa.agg(n="size", epa_sum="sum").reset_index())
-    return adv, qb
+    p["tov"] = ((p.interception == 1) | (p.fumble_lost == 1)).astype(int)
+    box = (p.groupby(["game_id", "side"]).agg(plays=("yards_gained", "size"), yards=("yards_gained", "sum"),
+                                              conv3=("third_down_converted", "sum"),
+                                              fail3=("third_down_failed", "sum"), tov=("tov", "sum")).reset_index())
+    return adv, qb, box
 
 
 def load_nfl_pbp(games: pd.DataFrame, ctx: Context, start: int, end: int) -> pd.DataFrame:
-    adv_frames = []
+    adv_frames, box_frames = [], []
     for yr in range(start, end + 1):
         def fetch(yr=yr):
             raw = download(f"{NFLVERSE}/pbp/play_by_play_{yr}.parquet")
@@ -268,14 +276,16 @@ def load_nfl_pbp(games: pd.DataFrame, ctx: Context, start: int, end: int) -> pd.
             print(f"  downloaded play-by-play {yr}", file=sys.stderr)
             return summarize_pbp(pd.read_parquet(io.BytesIO(raw), columns=PBP_COLS))
 
-        res = cached(f"nfl_pbp_{yr}.pkl", fetch, refresh=yr >= end)
+        res = cached(f"nfl_pbp3_{yr}.pkl", fetch, refresh=yr >= end)
         if res is None:
             warn(f"no play-by-play for {yr}")
             continue
-        adv, qb = res
+        adv, qb, box = res
         adv_frames.append(adv)
+        box_frames.append(box)
         for r in qb.itertuples(index=False):
             ctx.qb_log.setdefault(r.game_id, []).append((r.qb_id, float(r.n), float(r.epa_sum)))
+    ctx.box = pd.concat(box_frames, ignore_index=True) if box_frames else None
     if not adv_frames:
         return games
     adv = pd.concat(adv_frames)
@@ -1177,6 +1187,89 @@ def backtest_block(pf, allr):
             "series": [[k, round(float(v), 2)] for k, v in ser.items()]}
 
 
+STAT_DIR = {"ppg": 1, "papg": -1, "ppg_l3": 1, "papg_l3": -1, "ypp": 1, "ypp_allowed": -1, "epa_off": 1, "epa_def": -1,
+            "succ_off": 1, "succ_def": -1, "pass_epa_off": 1, "pass_epa_def": -1, "rush_epa_off": 1,
+            "rush_epa_def": -1, "third_off": 1, "third_def": -1, "tov_margin": 1}   # +1 = higher is better
+
+
+def team_stats(games, ctx, season):
+    """Season-to-date team stats and league ranks (1 = best). 'def' stats are what the defense allowed."""
+    g = games[(games.season == season) & games.home_pts.notna() & games.away_pts.notna()].copy()
+    if g.empty:
+        return {}, 0
+    g["_g"] = g.game_id.map(_gid)
+
+    def frame(me, you, tcol, ocol):
+        d = pd.DataFrame({"game_id": g["_g"].values, "side": me, "team": g[tcol].values, "date": g["date"].values,
+                          "pf": g[f"{tcol}_pts"].values, "pa": g[f"{ocol}_pts"].values})
+        for s_ in ADV_STATS:
+            d[f"off_{s_}"] = g[f"{me}_{s_}"].values
+            d[f"def_{s_}"] = g[f"{you}_{s_}"].values
+        return d
+    L = pd.concat([frame("h", "a", "home", "away"), frame("a", "h", "away", "home")], ignore_index=True)
+    L = L.sort_values("date", kind="stable")
+    has_box = ctx.box is not None
+    if has_box:
+        b = ctx.box
+        L = L.merge(b.add_prefix("o_").rename(columns={"o_game_id": "game_id", "o_side": "side"}),
+                    on=["game_id", "side"], how="left")
+        ob = b.copy()
+        ob["side"] = ob.side.map({"h": "a", "a": "h"})
+        L = L.merge(ob.add_prefix("d_").rename(columns={"d_game_id": "game_id", "d_side": "side"}),
+                    on=["game_id", "side"], how="left")
+    rows = {}
+    for team, d in L.groupby("team"):
+        r = {"games": len(d), "w": int((d.pf > d.pa).sum()), "l": int((d.pf < d.pa).sum()),
+             "t": int((d.pf == d.pa).sum()), "ppg": d.pf.mean(), "papg": d.pa.mean(),
+             "ppg_l3": d.pf.tail(3).mean(), "papg_l3": d.pa.tail(3).mean(),
+             "epa_off": d.off_epa.mean(), "epa_def": d.def_epa.mean(),
+             "succ_off": d.off_succ.mean(), "succ_def": d.def_succ.mean(),
+             "pass_epa_off": d.off_pass_epa.mean(), "pass_epa_def": d.def_pass_epa.mean(),
+             "rush_epa_off": d.off_rush_epa.mean(), "rush_epa_def": d.def_rush_epa.mean()}
+        if has_box and d.o_plays.notna().any() and d.o_plays.sum() > 0:
+            r["ypp"] = d.o_yards.sum() / d.o_plays.sum()
+            r["ypp_allowed"] = d.d_yards.sum() / d.d_plays.sum()
+            r["third_off"] = d.o_conv3.sum() / max(d.o_conv3.sum() + d.o_fail3.sum(), 1)
+            r["third_def"] = d.d_conv3.sum() / max(d.d_conv3.sum() + d.d_fail3.sum(), 1)
+            r["tov_margin"] = d.d_tov.mean() - d.o_tov.mean()
+        rows[team] = r
+    T = pd.DataFrame(rows).T
+    cls = pd.concat([games[["home", "home_class"]].set_axis(["t", "c"], axis=1),
+                     games[["away", "away_class"]].set_axis(["t", "c"], axis=1)])
+    pool = T.index.isin(set(cls[cls.c.isin(["nfl", "fbs"])].t))
+    ranks = {k: T.loc[pool, k].astype(float).rank(ascending=(dr < 0), method="min")
+             for k, dr in STAT_DIR.items() if k in T}
+    out = {}
+    for team, r in rows.items():
+        sd = {}
+        for k in STAT_DIR:
+            if k in r and pd.notna(r[k]):
+                rk = ranks[k].get(team)
+                sd[k] = {"v": float(r[k]), "r": int(rk) if rk is not None and pd.notna(rk) else None}
+        out[team] = {"games": r["games"], "record": f"{r['w']}-{r['l']}" + (f"-{r['t']}" if r["t"] else ""), "s": sd}
+    return out, int(pool.sum())
+
+
+def last_qbs(games):
+    out = {}
+    for r in games[games.home_pts.notna()].itertuples():
+        if isinstance(r.home_qb_name, str):
+            out[r.home] = r.home_qb_name
+        if isinstance(r.away_qb_name, str):
+            out[r.away] = r.away_qb_name
+    return out
+
+
+def team_card(side, team, f, ts, qbn):
+    c = dict(ts.get(team, {"games": 0, "record": "0-0", "s": {}}))
+    c["elo"], c["rest"] = f.get(f"{side}_elo"), f.get(f"{side}_rest")
+    if f"{side}_qb_val" in f.index:
+        c["qb"] = {"name": qbn.get(team), "val": f[f"{side}_qb_val"], "flag": bool(f[f"{side}_qb_delta"] <= -0.05)}
+    if f"{side}_inj_qb" in f.index:
+        c["inj"] = {g_: f[f"{side}_inj_{g_}"] for g_ in INJ_GROUPS}
+    return c
+
+
 def ml_info(r):
     if pd.isna(r.mkt_ml_home) or pd.isna(r.mkt_ml_away):
         return {"ml_implied_home": None, "ml_value": None}
@@ -1202,18 +1295,22 @@ def cmd_export(args):
     today = pd.Timestamp.today().normalize()
     up = (~played) & (games.date >= today - pd.Timedelta(days=1)) & \
          (games.date <= today + pd.Timedelta(days=args.days))
+    stats_season = int(games.loc[played, "season"].max())
+    ts, pool_n = team_stats(games, ctx, stats_season)
+    qbn = last_qbs(games)
     upcoming = []
     if up.any():
         sub = games.loc[up].join(model.predict(feats.loc[up, cols])).sort_values("date")
         for idx, r in sub.iterrows():
+            f = feats.loc[idx]
             wx = None
             if "weather" in gc:
-                f = feats.loc[idx]
                 wx = {"dome": bool(f.is_dome), "temp": f.temp, "wind": f.wind, "known": bool(f.weather_known)}
             upcoming.append({"kickoff": _kickoff(r), "week": int(r.week), "game_id": _gid(r.game_id), "away": r.away, "home": r.home,
                              "neutral": bool(r.neutral), "pred_away": r.pred_away, "pred_home": r.pred_home,
                              "pred_margin": r.pred_margin, "pred_total": r.pred_total,
                              "home_win_prob": r.home_win_prob, "weather": wx,
+                             "home_info": team_card("home", r.home, f, ts, qbn), "away_info": team_card("away", r.away, f, ts, qbn),
                              "vegas_spread": r.mkt_spread, "vegas_total": r.mkt_total,
                              "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
                              **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)})
@@ -1237,7 +1334,7 @@ def cmd_export(args):
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
-        "games": upcoming, "recent": recent, "backtest": by_season, "record": build_record(allr), "backtest_record": bt2, "backtest_seasons": seasons2, "live": live,
+        "games": upcoming, "recent": recent, "backtest": by_season, "record": build_record(allr), "backtest_record": bt2, "backtest_seasons": seasons2, "live": live, "stats_season": stats_season, "stats_pool": pool_n,
         "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG}})
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
