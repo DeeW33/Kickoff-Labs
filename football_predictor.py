@@ -123,7 +123,7 @@ ROSTER_COLS = ["home_ret_ppa", "away_ret_ppa", "home_ret_pass", "away_ret_pass",
 MARKET_COLS = ["mkt_spread", "mkt_total"]
 
 GAME_COLS = ["date", "season", "week", "game_id", "gametime", "home", "away", "home_pts", "away_pts",
-             "neutral", "home_class", "away_class", "mkt_spread", "mkt_total",
+             "neutral", "home_class", "away_class", "mkt_spread", "mkt_total", "mkt_ml_home", "mkt_ml_away",
              "roof", "temp", "wind", "home_qb_id", "away_qb_id"] + \
             [f"{sd}_{s}" for sd in ("h", "a") for s in ADV_STATS]
 
@@ -226,6 +226,8 @@ def load_nfl(start: int) -> pd.DataFrame:
         "home_class": "nfl", "away_class": "nfl",
         "mkt_spread": pd.to_numeric(df.get("spread_line"), errors="coerce"),  # + = home favored
         "mkt_total": pd.to_numeric(df.get("total_line"), errors="coerce"),
+        "mkt_ml_home": pd.to_numeric(df.get("home_moneyline"), errors="coerce"),
+        "mkt_ml_away": pd.to_numeric(df.get("away_moneyline"), errors="coerce"),
         "roof": df.get("roof"),
         "temp": pd.to_numeric(df.get("temp"), errors="coerce"),
         "wind": pd.to_numeric(df.get("wind"), errors="coerce"),
@@ -982,6 +984,73 @@ def cmd_predict(args):
     print(f"\nSaved {fname}")
 
 
+# ---- Betting logic: turns model-vs-Vegas gaps into picks, and grades the same rules historically
+EDGE_PLAY, EDGE_STRONG = 3.0, 4.0   # points of disagreement with Vegas -> play / strong play (1.5u)
+WIN_UNITS = 100 / 110               # profit per 1u risked at -110
+
+
+def wilson(w, n, z=1.96):
+    if n == 0:
+        return None, None
+    p, d = w / n, 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return c - h, c + h
+
+
+def american_prob(ml):
+    return 100 / (ml + 100) if ml > 0 else -ml / (-ml + 100)
+
+
+def make_picks(home, away, pred_margin, pred_total, v_spread, v_total):
+    """v_spread = Vegas expected home margin (+ = home favored)."""
+    out = {"sim_spread": None, "sim_total": None, "spread_play": None, "total_play": None}
+    if pd.notna(v_spread):
+        e = pred_margin - v_spread
+        team, line = (home, -v_spread) if e > 0 else (away, v_spread)
+        out["sim_spread"] = {"team": team, "line": line, "edge": abs(e)}
+        if abs(e) >= EDGE_PLAY:
+            out["spread_play"] = {"team": team, "line": line, "edge": abs(e),
+                                  "units": 1.5 if abs(e) >= EDGE_STRONG else 1.0}
+    if pd.notna(v_total):
+        e = pred_total - v_total
+        side = "Over" if e > 0 else "Under"
+        out["sim_total"] = {"side": side, "line": v_total, "edge": abs(e)}
+        if abs(e) >= EDGE_PLAY:
+            out["total_play"] = {"side": side, "line": v_total, "edge": abs(e),
+                                 "units": 1.5 if abs(e) >= EDGE_STRONG else 1.0}
+    return out
+
+
+def rec(res, units=None):
+    res = np.asarray(res, float)
+    u = np.ones(len(res)) if units is None else np.asarray(units, float)
+    w, l = int((res == 1).sum()), int((res == -1).sum())
+    lo, hi = wilson(w, w + l)
+    net = float((u * np.where(res == 1, WIN_UNITS, np.where(res == -1, -1.0, 0.0))).sum())
+    return {"w": w, "l": l, "p": int((res == 0).sum()), "win_pct": w / (w + l) if w + l else None,
+            "lo": lo, "hi": hi, "units": net, "staked": float(u[res != 0].sum())}
+
+
+def build_record(allr):
+    """Walk-forward record of the betting rules (every game was predicted before it was played)."""
+    d = allr[allr.mkt_spread.notna()].copy()
+    es = d.pred_margin - d.mkt_spread
+    s_res = np.where(es > 0, 1, -1) * np.sign(d.actual_margin - d.mkt_spread)
+    s_u = np.where(es.abs() >= EDGE_STRONG, 1.5, 1.0)
+    t = d[d.mkt_total.notna()]
+    et = t.pred_total - t.mkt_total
+    t_res = np.where(et > 0, 1, -1) * np.sign(t.actual_total - t.mkt_total)
+    t_u = np.where(et.abs() >= EDGE_STRONG, 1.5, 1.0)
+    sp, tp = (es.abs() >= EDGE_PLAY).to_numpy(), (et.abs() >= EDGE_PLAY).to_numpy()
+    return {
+        "official_all": rec(np.concatenate([s_res[sp], t_res[tp]]), np.concatenate([s_u[sp], t_u[tp]])),
+        "official_spread": rec(s_res[sp], s_u[sp]), "official_total": rec(t_res[tp], t_u[tp]),
+        "sim_spread_all": rec(s_res), "sim_over": rec(t_res[(et > 0).to_numpy()]),
+        "sim_under": rec(t_res[(et <= 0).to_numpy()]),
+    }
+
+
 def _clean(o):
     if isinstance(o, dict):
         return {str(k): _clean(v) for k, v in o.items()}
@@ -1004,6 +1073,16 @@ def _kickoff(r):
     if r.date.hour or r.date.minute:       # CFB: already UTC
         return r.date.strftime("%Y-%m-%dT%H:%M:%SZ")
     return r.date.strftime("%Y-%m-%d")
+
+
+def ml_info(r):
+    if pd.isna(r.mkt_ml_home) or pd.isna(r.mkt_ml_away):
+        return {"ml_implied_home": None, "ml_value": None}
+    ph, pa = american_prob(r.mkt_ml_home), american_prob(r.mkt_ml_away)
+    fair = ph / (ph + pa)                      # remove the bookmaker's margin
+    d = r.home_win_prob - fair
+    return {"ml_implied_home": fair,
+            "ml_value": (r.home if d >= 0.05 else r.away if d <= -0.05 else None)}
 
 
 def cmd_export(args):
@@ -1032,13 +1111,17 @@ def cmd_export(args):
             upcoming.append({"kickoff": _kickoff(r), "week": int(r.week), "away": r.away, "home": r.home,
                              "neutral": bool(r.neutral), "pred_away": r.pred_away, "pred_home": r.pred_home,
                              "pred_margin": r.pred_margin, "pred_total": r.pred_total,
-                             "home_win_prob": r.home_win_prob, "weather": wx})
+                             "home_win_prob": r.home_win_prob, "weather": wx,
+                             "vegas_spread": r.mkt_spread, "vegas_total": r.mkt_total,
+                             "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
+                             **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)})
 
     allr = run_backtest(lg, games, feats, cols, args.model, args.test_seasons, wu)
     rec = allr.join(games[["date", "home", "away", "home_pts", "away_pts"]]).sort_values("date").tail(30)
     recent = [{"date": r.date.strftime("%Y-%m-%d"), "home": r.home, "away": r.away,
                "pred_home": r.pred_home, "pred_away": r.pred_away,
                "home_pts": r.home_pts, "away_pts": r.away_pts,
+               "vegas_spread": r.mkt_spread, "pred_margin": r.pred_margin,
                "correct": None if r.actual_margin == 0 else bool((r.pred_margin > 0) == (r.actual_margin > 0))}
               for r in rec.iloc[::-1].itertuples()]
     by_season = {str(int(s)): score_block(d) for s, d in allr.groupby("season")}
@@ -1047,7 +1130,8 @@ def cmd_export(args):
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
-        "games": upcoming, "recent": recent, "backtest": by_season})
+        "games": upcoming, "recent": recent, "backtest": by_season, "record": build_record(allr),
+        "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG}})
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w") as f:
