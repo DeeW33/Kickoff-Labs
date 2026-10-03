@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:600px}
 th,td{padding:.55rem .75rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
 th{color:var(--mute);font-weight:600;background:var(--panel2);font-size:.8rem}tr:last-child td{border-bottom:0}
 td small{display:block;color:var(--mute);font-size:.78rem}
-.star{color:var(--amber);font-weight:700;display:block}.sim{color:var(--mute);display:block}.mlv{color:var(--go);font-size:.8rem;display:block}
+.star{color:var(--amber);font-weight:700;display:block}tr:has(.star)>td{background:color-mix(in srgb,var(--amber) 8%,transparent)}.sim{color:var(--mute);display:block}.mlv{color:var(--go);font-size:.8rem;display:block}
 .mbtn{display:block;margin-top:.35rem;font:inherit;font-size:.78rem;color:var(--go);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
 tr.det>td{background:var(--bg);padding:.8rem .75rem}.more{margin-top:.6rem}.more summary{cursor:pointer;color:var(--go);font-size:.88rem}
 .cmp{min-width:0;font-size:.84rem;background:var(--panel)}.cmp td,.cmp th{padding:.3rem .6rem}.cmp td+td,.cmp th+th{text-align:right}
@@ -71,7 +71,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
   <div id="v-main">
     <section id="live">
       <h1>Live record</h1>
-      <p class="lead">Every official play is logged before kickoff at the line it was posted, then graded after the game. Picks are never edited afterward, and the full log is public in this site's repository history.</p>
+      <p class="lead">Each week the model's five highest-rated plays are the only official plays. They are logged before kickoff at the line when posted, then graded after the game. Picks are never edited afterward, and the full log is public in this site's repository history.</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
@@ -82,13 +82,13 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 
     <section id="plays">
       <h2>This week's official plays</h2>
-      <p class="note">A play is made when the model's number differs from the Vegas line by 3+ points (1 unit) or 4+ points (1.5 units). Lines move, so check the current number before you bet.</p>
+      <p class="note">Each week the five plays where the model differs most from the Vegas line are the official plays: 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. They lock about three days before the week's first kickoff and don't change after that. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
 
     <section id="games">
       <h2>All predictions</h2>
-      <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks an official play; "Sim" is the model's side where there is no play.</p>
+      <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks one of the week's five official plays; "Sim" is the model's side everywhere else (not a bet).</p>
       <div id="days"></div>
     </section>
 
@@ -105,7 +105,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
     <div class="stats" id="bstats"></div>
     <div class="chartbox" id="bchart"></div>
     <div class="scroll" id="btable"></div>
-    <p class="note" style="margin-top:.8rem">Two seasons is a small sample, and results swing from year to year. A big gap between the seasons is normal variation, not a trend. The last row shows the model's side on every spread with no filter, as a reference point. Units assume −110 odds.</p>
+    <p class="note" style="margin-top:.8rem">Only five plays a week means about 85 plays a season, so two seasons is a small sample, and results swing from year to year. A big gap between the seasons is normal variation, not a trend. The last row shows the model's side on every spread with no filter, as a reference point. Units assume −110 odds.</p>
   </div>
 
   <footer>
@@ -173,16 +173,16 @@ function matchupPanel(g) {
 }
 function playCard(x) {
   const g = x.g, p = x.p, spread = x.type === "spread";
-  return `<article class="play"><div class="hd"><span><span class="badge">Official play · ${p.units}u</span> ${spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
+  return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} of ${p.of || 5} · ${p.units}u</span> ${spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
     <div class="pick">${spread ? `${esc(p.team)} ${line(p.line)}` : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
     <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
     <span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
 }
 function gameRow(g, i) {
   let c = "";
-  if (g.spread_play) c += `<span class="star">★ ${esc(g.spread_play.team)} ${line(g.spread_play.line)} · ${g.spread_play.units}u</span>`;
+  if (g.spread_play) c += `<span class="star">★ #${g.spread_play.rank} ${esc(g.spread_play.team)} ${line(g.spread_play.line)} · ${g.spread_play.units}u</span>`;
   else if (g.sim_spread) c += `<span class="sim">Sim: ${esc(g.sim_spread.team)} ${line(g.sim_spread.line)}</span>`;
-  if (g.total_play) c += `<span class="star">★ ${g.total_play.side} ${tr(g.total_play.line)} · ${g.total_play.units}u</span>`;
+  if (g.total_play) c += `<span class="star">★ #${g.total_play.rank} ${g.total_play.side} ${tr(g.total_play.line)} · ${g.total_play.units}u</span>`;
   else if (g.sim_total) c += `<span class="sim">Sim: ${g.sim_total.side} ${tr(g.sim_total.line)}</span>`;
   if (g.ml_value) { const h = g.ml_value === g.home, m = h ? g.home_win_prob : 1 - g.home_win_prob, i = h ? g.ml_implied_home : 1 - g.ml_implied_home;
     c += `<span class="mlv">ML value: ${esc(g.ml_value)} (model ${pct(m)} vs ${pct(i)} implied)</span>`; }
@@ -220,8 +220,8 @@ function render() {
 
   const plays = [];
   d.games.forEach(g => { if (g.spread_play) plays.push({type:"spread", g, p:g.spread_play}); if (g.total_play) plays.push({type:"total", g, p:g.total_play}); });
-  plays.sort((a, b) => b.p.units - a.p.units || b.p.edge - a.p.edge);
-  $("playlist").innerHTML = plays.length ? plays.map(playCard).join("") : `<div class="empty">${hasLines ? "No plays right now: the model and Vegas agree closely on the upcoming games." : "Vegas lines aren't available for this league yet."}</div>`;
+  plays.sort((a, b) => a.p.rank - b.p.rank || b.p.edge - a.p.edge);
+  $("playlist").innerHTML = plays.length ? plays.map(playCard).join("") : `<div class="empty">${hasLines ? "No official plays are locked yet. This week's top five lock about three days before the first kickoff; until then every game shows the model's side in the table below." : "Vegas lines aren't available for this league yet."}</div>`;
 
   let html = "", last = "", buf = "", n = 0;
   const flush = () => { if (buf) html += `<div class="scroll"><table><thead><tr><th>Matchup</th><th>Model score</th><th>Vegas line</th><th>Official play · model sides</th></tr></thead><tbody>${buf}</tbody></table></div>`; buf = ""; };
@@ -230,7 +230,7 @@ function render() {
 
   const b = d.backtest_record, ss = (d.backtest_seasons || []).map(String);
   if (b && b.overall.all.w + b.overall.all.l > 0) {
-    $("btlead").textContent = `What the same rules would have done in the ${ss.join(" and ")} seasons. Each season was predicted by a model trained only on earlier seasons, with every game predicted before it was played.`;
+    $("btlead").textContent = `What the same rules (the five biggest gaps each week) would have done in the ${ss.join(" and ")} seasons. Each season was predicted by a model trained only on earlier seasons, with every game predicted before it was played.`;
     $("bstats").innerHTML = stats(b.overall.all, "Backtest record, both seasons"); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss);
   } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; $("bstats").innerHTML = $("bchart").innerHTML = $("btable").innerHTML = ""; }
 }
