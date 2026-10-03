@@ -41,6 +41,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -196,6 +197,8 @@ class Context:
         self.injw_counts = None   # same, but each injury weighted by the player's recent snap share
         self.snap_hist = None     # pfr_id -> (sorted season*100+week keys, snap shares)
         self.gsis2pfr = {}
+        self.espn = {}            # team -> {"qb_depth": [names], "out": [players], "qb_out": bool} (live, NFL)
+        self.qb_name_id = {}      # normalized QB name -> gsis id (from past starts)
         self.team_season = {}     # (season, team) -> dict(ret_ppa, ret_pass, portal_net, talent_z)
         self.talent_z = {}
         self.season_means = {}
@@ -400,6 +403,104 @@ def load_nfl_injuries(ctx: Context, end: int):
         ctx.injw_counts = cw
     for r in d[(d.grp == "qb") & (d.w >= 0.75)].itertuples(index=False):
         ctx.qb_out.setdefault((int(r.season), int(r.week), r.team), set()).add(r.gsis_id)
+
+
+ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl"
+ESPN_ABBR = {"WSH": "WAS", "LAR": "LA", "JAX": "JAC"}   # ESPN -> nflverse spellings when they differ
+ESPN_OUT = {"out", "injured reserve", "ir", "suspension", "suspended", "pup", "physically unable to perform"}
+ESPN_DOUBT = {"doubtful"}
+ESPN_Q = {"questionable", "day-to-day"}
+STARTER_SLOTS = {"qb": 1, "rb": 1, "te": 1, "wr": 3, "lt": 1, "lg": 1, "c": 1, "rg": 1, "rt": 1,
+                 "de": 2, "dt": 2, "nt": 1, "lb": 3, "olb": 2, "ilb": 2, "mlb": 1, "cb": 3, "s": 2, "fs": 1, "ss": 1,
+                 "ldt": 1, "rdt": 1, "lde": 1, "rde": 1, "wlb": 1, "slb": 1, "lcb": 1, "rcb": 1, "nb": 1}
+
+
+def norm_name(n) -> str:
+    n = re.sub(r"[^a-z ]", "", str(n or "").lower().replace(".", ""))
+    return " ".join(w for w in n.split() if w not in ("jr", "sr", "ii", "iii", "iv"))
+
+
+def _depth_lists(node, out):
+    """Collect {position_key: [player names in depth order]} from ESPN's depth-chart JSON, whatever its nesting."""
+    if isinstance(node, dict):
+        pos = node.get("positions")
+        if isinstance(pos, dict):
+            for k, v in pos.items():
+                ath = v.get("athletes") if isinstance(v, dict) else None
+                if ath:
+                    names = [a.get("displayName") or a.get("fullName") for a in ath if isinstance(a, dict)]
+                    out.setdefault(str(k).lower(), [n for n in names if n])
+        for v in node.values():
+            _depth_lists(v, out)
+    elif isinstance(node, list):
+        for v in node:
+            _depth_lists(v, out)
+
+
+def parse_espn_team(depth_json, injury_list):
+    """-> {"qb_depth": [...], "out": [{name,pos,status,slot,starter}], "qb_out": bool}"""
+    depth = {}
+    try:
+        _depth_lists(depth_json, depth)
+    except Exception:
+        depth = {}
+    where = {}                                    # normalized name -> (position key, slot)
+    for k, names in depth.items():
+        for i, n in enumerate(names):
+            key = norm_name(n)
+            if key not in where or i + 1 < where[key][1]:
+                where[key] = (k, i + 1)
+    players = []
+    for it in injury_list or []:
+        ath = it.get("athlete") or {}
+        name = ath.get("displayName") or ath.get("fullName")
+        status = str(it.get("status") or (it.get("type") or {}).get("description") or "").strip()
+        if not name or not status:
+            continue
+        pos = str((ath.get("position") or {}).get("abbreviation") or "").upper()
+        sl = status.lower()
+        tier = "out" if sl in ESPN_OUT else "doubtful" if sl in ESPN_DOUBT else "questionable" if sl in ESPN_Q else None
+        if tier is None:
+            continue
+        pk, slot = where.get(norm_name(name), (None, None))
+        starter = bool(slot is not None and slot <= STARTER_SLOTS.get(pk or pos.lower(), 1))
+        players.append({"name": name, "pos": pos, "status": status, "tier": tier, "slot": slot, "starter": starter})
+    qbd = depth.get("qb", [])
+    out_names = {norm_name(p["name"]) for p in players if p["tier"] in ("out", "doubtful")}
+    return {"qb_depth": qbd, "out": players,
+            "qb_out": bool(qbd) and norm_name(qbd[0]) in out_names}
+
+
+def fetch_espn_report():
+    """Current injuries + depth charts for all NFL teams from ESPN's public JSON. {} if unreachable."""
+    try:
+        def get(url):
+            r = requests.get(url, timeout=25, headers={"User-Agent": "Mozilla/5.0"})
+            r.raise_for_status()
+            return r.json()
+        teams = {}
+        for t in get(f"{ESPN_SITE}/teams?limit=40")["sports"][0]["leagues"][0]["teams"]:
+            t = t["team"]
+            ab = ESPN_ABBR.get(t["abbreviation"], t["abbreviation"])
+            teams[str(t["id"])] = TEAM_MAP.get(ab, ab)
+        inj = {}
+        for e in get(f"{ESPN_SITE}/injuries").get("injuries", []):
+            inj[str(e.get("id"))] = e.get("injuries", [])
+        rep = {}
+        for tid, ab in teams.items():
+            try:
+                dj = get(f"{ESPN_SITE}/teams/{tid}/depthcharts")
+            except Exception as e:
+                warn(f"ESPN depth chart for {ab} unavailable: {e}")
+                dj = {}
+            rep[ab] = parse_espn_team(dj, inj.get(tid, []))
+        n_out = sum(len(v["out"]) for v in rep.values())
+        n_dep = sum(1 for v in rep.values() if v["qb_depth"])
+        print(f"  ESPN report: {n_out} injured players, depth charts for {n_dep}/{len(rep)} teams", file=sys.stderr)
+        return rep
+    except Exception as e:
+        warn(f"ESPN injury/depth data unavailable ({e}); using nflverse report only")
+        return {}
 
 
 def apply_forecasts(games: pd.DataFrame, days: int) -> pd.DataFrame:
@@ -788,10 +889,17 @@ class Builder:
     def _qb(self, g, ht, at):
         f = {}
         for sd, t, team, cur in (("home", ht, g.home, g.home_qb_id), ("away", at, g.away, g.away_qb_id)):
-            if pd.isna(cur):  # starter not known yet -> assume last starter unless he's Out/Doubtful
-                cur = t.last_qb
-                if cur is not None and cur in self.ctx.qb_out.get((g.season, g.week, team), ()):
-                    cur = None
+            if pd.isna(cur):  # starter not known yet
+                rep = self.ctx.espn.get(team)
+                if rep and rep["qb_depth"]:
+                    # ESPN depth chart: first QB on the chart who isn't Out/Doubtful/IR
+                    outn = {norm_name(p["name"]) for p in rep["out"] if p["tier"] in ("out", "doubtful")}
+                    nm = next((n for n in rep["qb_depth"] if norm_name(n) not in outn), None)
+                    cur = self.ctx.qb_name_id.get(norm_name(nm)) if nm else None
+                else:             # fall back: assume last starter unless the nflverse report has him Out/Doubtful
+                    cur = t.last_qb
+                    if cur is not None and cur in self.ctx.qb_out.get((g.season, g.week, team), ()):
+                        cur = None
             val, n = self._qb_value(cur)
             prev = self._qb_value(t.last_qb)[0] if t.last_qb is not None else val
             f[f"{sd}_qb_val"] = val
@@ -1017,7 +1125,11 @@ def prepare(args, forecast_days=None):
         if "injw" in getattr(args, "with_set", set()):   # only needed when weighted injuries are enabled
             load_nfl_snaps(ctx, end)
         load_nfl_injuries(ctx, end)
+        nm = pd.concat([games[["home_qb_name", "home_qb_id"]].set_axis(["n", "i"], axis=1),
+                        games[["away_qb_name", "away_qb_id"]].set_axis(["n", "i"], axis=1)]).dropna()
+        ctx.qb_name_id = {norm_name(n): i for n, i in zip(nm.n, nm.i)}   # later starts overwrite earlier
         if forecast_days is not None:
+            ctx.espn = fetch_espn_report()
             games = apply_forecasts(games.sort_values("date").reset_index(drop=True), forecast_days)
     else:
         key = os.environ.get("CFBD_API_KEY")
@@ -1527,11 +1639,24 @@ def last_qbs(games):
     return out
 
 
-def team_card(side, team, f, ts, qbn):
+def team_card(side, team, f, ts, qbn, ctx_espn=None):
     c = dict(ts.get(team, {"games": 0, "record": "0-0", "s": {}}))
     c["elo"], c["rest"] = f.get(f"{side}_elo"), f.get(f"{side}_rest")
     if f"{side}_qb_val" in f.index:
         c["qb"] = {"name": qbn.get(team), "val": f[f"{side}_qb_val"], "flag": bool(f[f"{side}_qb_delta"] <= -0.05)}
+    rep = (ctx_espn or {}).get(team)
+    if rep:
+        qbn_ = None
+        if rep["qb_depth"]:
+            outn = {norm_name(p["name"]) for p in rep["out"] if p["tier"] in ("out", "doubtful")}
+            qbn_ = next((n for n in rep["qb_depth"] if norm_name(n) not in outn), None)
+        c["report"] = {"qb_out": rep["qb_out"], "qb_starter": qbn_, "qb_depth1": (rep["qb_depth"] or [None])[0],
+                       "players": [{k: p[k] for k in ("name", "pos", "status", "tier", "starter")}
+                                   for p in sorted(rep["out"], key=lambda p: (p["tier"] != "out", not p["starter"], p["tier"]))]}
+    if rep and rep["qb_depth"] and "qb" in c:
+        c["qb"]["name"] = qbn_ or c["qb"]["name"]            # the QB who will actually start per ESPN's depth chart
+        c["qb"]["flag"] = bool(rep["qb_out"])
+        c["qb"]["listed_out"] = rep["qb_depth"][0] if rep["qb_out"] else None
     if f"{side}_inj_qb" in f.index:
         c["inj"] = {g_: f[f"{side}_inj_{g_}"] for g_ in INJ_GROUPS}
     return c
@@ -1577,7 +1702,7 @@ def cmd_export(args):
                              "neutral": bool(r.neutral), "pred_away": r.pred_away, "pred_home": r.pred_home,
                              "pred_margin": r.pred_margin, "pred_total": r.pred_total,
                              "home_win_prob": r.home_win_prob, "weather": wx,
-                             "home_info": team_card("home", r.home, f, ts, qbn), "away_info": team_card("away", r.away, f, ts, qbn),
+                             "home_info": team_card("home", r.home, f, ts, qbn, ctx.espn), "away_info": team_card("away", r.away, f, ts, qbn, ctx.espn),
                              "vegas_spread": r.mkt_spread, "vegas_total": r.mkt_total,
                              "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
                              **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)})
