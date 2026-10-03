@@ -2,15 +2,15 @@ name: Update predictions and deploy site
 
 on:
   schedule:
-    - cron: "0 11 * * *"
-    - cron: "0 15 * * 0,6"
-  workflow_dispatch:
+    - cron: "0 11 * * *"      # daily, ~7am Eastern
+    - cron: "0 15 * * 0,6"    # Sat + Sun mid-day: fresh injury reports and forecasts
+  workflow_dispatch:           # "Run workflow" button
   push:
     branches: [main]
     paths: ["site/**", "football_predictor.py", "requirements.txt", ".github/workflows/**"]
 
 permissions:
-  contents: read
+  contents: write              # needed to save the pick log back to the repo
   pages: write
   id-token: write
 
@@ -38,9 +38,20 @@ jobs:
         run: python football_predictor.py export --league nfl --out _site/data/nfl.json
       - name: CFB predictions
         run: python football_predictor.py export --league cfb --out _site/data/cfb.json
-        continue-on-error: true
+        continue-on-error: true   # site still deploys (NFL only) if the key is missing
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+      - name: Save pick log (public, timestamped by git history)
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if ! git diff --cached --quiet; then
+            git commit -m "Update pick log"
+            git pull --rebase origin main
+            git push
+          fi
       - run: cp -r site/. _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
