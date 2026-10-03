@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kickoff Labs: Sharp Betting Plays</title>
+<title>Kickoff Labs: football picks with a public live record</title>
 <meta name="description" content="Model-based NFL and college football picks, graded in public, with a live record and a two-season backtest.">
 <style>
 :root{--bg:#0b1220;--panel:#121c31;--panel2:#18243f;--ink:#e8eefc;--mute:#8d9bb8;--line:#233252;--go:#3ddc97;--go2:#12352b;--amber:#f5b942;--bad:#ff7a6b}
@@ -77,7 +77,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
       <p class="note" id="lnote"></p>
       <h3>Plays, newest first</h3>
       <div class="scroll" id="ltable"></div>
-      <a class="callout" href="#backtest"><b>See the backtest: how these rules would have done over the past two seasons</b><span>Every game predicted before it was played, using only earlier data. Not a live record.</span></a>
+      <a class="callout" href="#backtest"><b>See the backtest: this season so far and how these rules would have done in past seasons</b><span>Every game predicted before it was played, using only earlier data. Not a live record.</span></a>
     </section>
 
     <section id="plays">
@@ -100,12 +100,27 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 
   <div id="v-bt" hidden>
     <a class="back" href="#live">← Back to the live record</a>
-    <h1>Backtest: the past two seasons</h1>
+    <h1>Backtest: top 5 picks each week</h1>
     <p class="lead" id="btlead"></p>
-    <div class="stats" id="bstats"></div>
-    <div class="chartbox" id="bchart"></div>
-    <div class="scroll" id="btable"></div>
-    <p class="note" style="margin-top:.8rem">Only five plays a week means about 85 plays a season, so two seasons is a small sample, and results swing from year to year. A big gap between the seasons is normal variation, not a trend. The last row shows the model's side on every spread with no filter, as a reference point. Units assume −110 odds.</p>
+    <p class="note"><a href="#backtest-ytd" class="jump">This season so far</a> · <a href="#backtest-past" class="jump">Past seasons</a></p>
+
+    <section id="backtest-ytd">
+      <h2 id="ytdhead">This season so far</h2>
+      <p class="note" id="ytdnote"></p>
+      <div class="stats" id="ystats"></div>
+      <div class="chartbox" id="ychart"></div>
+      <div class="scroll" id="ytable"></div>
+    </section>
+
+    <section id="backtest-past">
+      <h2 id="pasthead">Past seasons</h2>
+      <p class="note">Same rule applied to earlier full seasons.</p>
+      <div class="stats" id="bstats"></div>
+      <div class="chartbox" id="bchart"></div>
+      <div class="scroll" id="btable"></div>
+    </section>
+
+    <p class="note" style="margin-top:1rem" id="btnote"></p>
   </div>
 
   <footer>
@@ -195,16 +210,20 @@ function liveRow(e) {
   return `<tr><td>${esc(e.away)} @ ${esc(e.home)}<small>${shortDay(e.kickoff)}</small></td><td><b>${esc(pickLabel(e))}</b></td><td>${e.units}u</td>
     <td class="${cls}">${done ? `${e.result === 1 ? "Win" : e.result === -1 ? "Loss" : "Push"} ${units(e.net)}<small>Final ${e.away_pts}–${e.home_pts}</small>` : `Pending<small>${timeOf(e.kickoff) || shortDay(e.kickoff)}</small>`}</td></tr>`;
 }
-function btTable(b, seasons) {
-  const rows = []; const add = (name, o) => [["All plays", o.all], ["Spreads", o.spread], ["Totals", o.total]].forEach(([t, r], i) => rows.push([i ? "" : name, t, r]));
-  seasons.forEach(s => b.by_season[s] && add(s + " season", b.by_season[s])); add("Both seasons", b.overall); rows.push(["Reference", "Model side on every spread", b.all_spreads]);
+function btTable(b, seasons, total = "All seasons") {
+  const rows = []; const add = (name, o) => [["All picks", o.all], ["Spreads", o.spread], ["Totals", o.total]].forEach(([t, r], i) => rows.push([i ? "" : name, t, r]));
+  seasons.forEach(s => b.by_season[s] && add(s + " season", b.by_season[s])); add(total, b.overall);
   return `<table><thead><tr><th>Period</th><th>Bet type</th><th>Record</th><th>Win %</th><th>95% range</th><th>Units</th></tr></thead><tbody>${rows.map(([a, t, v]) => { const n = v.w + v.l;
     return `<tr><td>${a}</td><td>${t}</td><td>${recTxt(v)}</td><td>${n ? pct1(v.win_pct) : "—"}</td><td>${n ? pct1(v.lo) + " to " + pct1(v.hi) : "—"}</td><td class="${v.units >= 0 ? "pos" : "neg"}">${n ? units(v.units) : "—"}</td></tr>`; }).join("")}</tbody></table>`;
+}
+function weekTable(ws) {
+  return `<table><thead><tr><th>Week</th><th>Record</th><th>Win %</th><th>Units</th></tr></thead><tbody>${ws.map(v => { const n = v.w + v.l;
+    return `<tr><td>Week ${v.week}</td><td>${recTxt(v)}</td><td>${n ? pct1(v.win_pct) : "—"}</td><td class="${v.units >= 0 ? "pos" : "neg"}">${n ? units(v.units) : "—"}</td></tr>`; }).join("")}</tbody></table>`;
 }
 
 function render() {
   const d = D[L];
-  if (!d) { $("stamp").textContent = ""; ["lstats","lchart","ltable","playlist","bstats","bchart","btable"].forEach(i => $(i).innerHTML = "");
+  if (!d) { $("stamp").textContent = ""; ["lstats","lchart","ltable","playlist","bstats","bchart","btable","ystats","ychart","ytable"].forEach(i => $(i).innerHTML = "");
     $("lnote").textContent = ""; $("days").innerHTML = `<div class="empty">No data for this league yet. It appears after the next scheduled update.</div>`; return; }
   $("stamp").textContent = `${d.league.toUpperCase()} · updated ${new Date(d.generated_at).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}`;
   const lv = d.live, hasLines = d.games.some(g => g.vegas_spread != null);
@@ -228,15 +247,25 @@ function render() {
   d.games.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); html += `<h3>${esc(k)}</h3>`; last = k; } buf += gameRow(g, n++); });
   flush(); $("days").innerHTML = html || `<div class="empty">No games in the next few days. Check back closer to kickoff.</div>`;
 
-  const b = d.backtest_record, ss = (d.backtest_seasons || []).map(String);
+  const b = d.backtest_record, y = d.backtest_ytd, ss = (d.backtest_seasons || []).map(String);
+  const ids = ["ystats","ychart","ytable","bstats","bchart","btable"];
   if (b && b.overall.all.w + b.overall.all.l > 0) {
-    $("btlead").textContent = `What the same rules (the five biggest gaps each week) would have done in the ${ss.join(" and ")} seasons. Each season was predicted by a model trained only on earlier seasons, with every game predicted before it was played.`;
-    $("bstats").innerHTML = stats(b.overall.all, "Backtest record, both seasons"); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss);
-  } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; $("bstats").innerHTML = $("bchart").innerHTML = $("btable").innerHTML = ""; }
+    const yrs = ss.length > 1 ? `${ss[0]} to ${ss[ss.length - 1]}` : ss[0];
+    $("btlead").textContent = `Each week, the model's five biggest gaps from the Vegas line are the official plays. This page shows what that rule would have done in games already played. Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is not the live record, which only counts picks logged before kickoff.`;
+    if (y && y.overall.all.w + y.overall.all.l > 0) {
+      $("ytdhead").textContent = `${y.season} season so far`;
+      $("ytdnote").textContent = `The first ${y.weeks_done} completed weeks of ${y.season}, using the same top-5 rule applied after the fact (the live record starts later, with this week's picks). Weeks still in progress aren't counted.`;
+      $("ystats").innerHTML = stats(y.overall.all, `Top 5 each week, ${y.season} weeks 1 to ${y.weeks_done}`); $("ychart").innerHTML = chart(y.series); $("ytable").innerHTML = weekTable(y.by_week) + btTable({by_season: {}, overall: y.overall}, [], `${y.season} so far`);
+    } else { $("ytdhead").textContent = "This season so far"; $("ytdnote").textContent = "No completed weeks with betting lines yet."; ["ystats","ychart","ytable"].forEach(i => $(i).innerHTML = ""); }
+    $("pasthead").textContent = `Past ${ss.length} seasons (${yrs})`;
+    $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss);
+    $("btnote").textContent = `Five picks a week is about 85 a season, so even a few seasons is a small sample, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds (1 unit = 1% of a bankroll). Spreads and totals are graded at the line in the free data.`;
+  } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; ids.forEach(i => $(i).innerHTML = ""); $("ytdnote").textContent = ""; $("btnote").textContent = ""; }
 }
 function route() {
-  const bt = location.hash === "#backtest"; $("v-main").hidden = bt; $("v-bt").hidden = !bt;
-  if (bt) window.scrollTo(0, 0); else if (location.hash.length > 1) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+  const h = location.hash, bt = h.startsWith("#backtest"); $("v-main").hidden = bt; $("v-bt").hidden = !bt;
+  if (bt) { const t = h.length > 9 ? document.getElementById(h.slice(1)) : null; if (t) t.scrollIntoView(); else window.scrollTo(0, 0); }
+  else if (h.length > 1) { const t = document.getElementById(h.slice(1)); if (t) t.scrollIntoView(); }
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { L = t.dataset.l;
   document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t)); render(); }));
