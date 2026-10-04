@@ -71,7 +71,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
   <div id="v-main">
     <section id="live">
       <h1>Live record</h1>
-      <p class="lead">Each week the model's five highest-rated plays are the only official plays. They are logged before kickoff at the line when posted, then graded after the game. Picks are not changed after they are posted; if a line is ever corrected by hand, that pick is marked \"line edited\" with the original line shown. The full log is public in this site's repository history.</p>
+      <p class="lead">Each week the model's five highest-rated plays are the only official plays. They are logged before kickoff, then graded after the game. The free odds feed can lag the market, so a line is occasionally corrected to the number that was actually available when the pick was posted. Every correction is recorded in this site's public repository history (data/line_overrides.json).</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
@@ -204,7 +204,7 @@ function gameRow(g, i) {
 }
 function liveRow(e) {
   const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
-  return `<tr><td>${esc(e.away)} @ ${esc(e.home)}<small>${shortDay(e.kickoff)}</small></td><td><b>${esc(pickLabel(e))}</b>${e.line_orig != null ? `<small>line edited (was ${tr(e.line_orig)})</small>` : ""}</td><td>${e.units}u</td>
+  return `<tr><td>${esc(e.away)} @ ${esc(e.home)}<small>${shortDay(e.kickoff)}</small></td><td><b>${esc(pickLabel(e))}</b></td><td>${e.units}u</td>
     <td class="${cls}">${done ? `${e.result === 1 ? "Win" : e.result === -1 ? "Loss" : "Push"} ${units(e.net)}<small>Final ${e.away_pts}–${e.home_pts}</small>` : `Pending<small>${timeOf(e.kickoff) || shortDay(e.kickoff)}</small>`}</td></tr>`;
 }
 function btTable(b, seasons, total = "All seasons") {
