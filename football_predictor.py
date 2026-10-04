@@ -889,8 +889,9 @@ class Builder:
     def _qb(self, g, ht, at):
         f = {}
         for sd, t, team, cur in (("home", ht, g.home, g.home_qb_id), ("away", at, g.away, g.away_qb_id)):
-            if pd.isna(cur):  # starter not known yet
-                rep = self.ctx.espn.get(team)
+            rep = self.ctx.espn.get(team)
+            upcoming = pd.isna(g.home_pts)
+            if pd.isna(cur) or (upcoming and rep and rep["qb_depth"]):   # starter unknown, or ESPN knows better
                 if rep and rep["qb_depth"]:
                     # ESPN depth chart: first QB on the chart who isn't Out/Doubtful/IR
                     outn = {norm_name(p["name"]) for p in rep["out"] if p["tier"] in ("out", "doubtful")}
@@ -1490,6 +1491,28 @@ def update_pick_log(path, league, cands, games, now):
                                "line": p["line"], "edge": p["edge"], "units": p["units"],
                                "pred_away": u["pred_away"], "pred_home": u["pred_home"], "status": "pending",
                                "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}))
+
+    # 2b) manual line corrections from data/line_overrides.json: [{"id", "line", "side"?, "note"?}].
+    #     The original line is kept on the entry (line_orig) and the site marks the pick as edited.
+    ov_path = os.path.join(os.path.dirname(path) or ".", "line_overrides.json")
+    ovs = {o["id"]: o for o in json.load(open(ov_path))} if os.path.exists(ov_path) else {}
+    for e in log:
+        o = ovs.get(e["id"])
+        if not o or e.get("line") == float(o["line"]):
+            continue
+        if o.get("side") and e.get("side") != o["side"]:
+            warn(f"override for {e['id']} skipped: logged side is {e.get('side')}, not {o['side']}")
+            continue
+        if e["type"] == "spread" and (e["line"] > 0) != (float(o["line"]) > 0):
+            warn(f"override for {e['id']} skipped: sign differs from logged line {e['line']}")
+            continue
+        e["line_orig"] = e.get("line_orig", e["line"])
+        e["line"] = float(o["line"])
+        e["line_note"] = o.get("note") or "line edited by site owner"
+        if e["status"] == "graded":           # re-grade at the new line
+            res, net = grade_pick(e, e["home_pts"], e["away_pts"])
+            e.update(result=res, net=round(net, 3))
+        print(f"  line override applied: {e['id']} {e['line_orig']} -> {e['line']}", file=sys.stderr)
 
     # 3) grade finished plays
     fin = meta
