@@ -32,8 +32,12 @@
   "units": 1.5,
   "pred_away": 22.243,
   "pred_home": 22.998,
-  "status": "pending",
-  "logged_at": "2026-10-03T06:00:30Z"
+  "status": "graded",
+  "logged_at": "2026-10-03T06:00:30Z",
+  "home_pts": 20.0,
+  "away_pts": 24.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_04_TEN_BAL|total",
@@ -50,8 +54,12 @@
   "units": 1.5,
   "pred_away": 16.603,
   "pred_home": 30.086,
-  "status": "pending",
-  "logged_at": "2026-10-03T06:00:30Z"
+  "status": "graded",
+  "logged_at": "2026-10-03T06:00:30Z",
+  "home_pts": 24.0,
+  "away_pts": 18.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_04_IND_WAS|spread",
@@ -90,8 +98,12 @@
   "units": 1.5,
   "pred_away": 21.224,
   "pred_home": 24.629,
-  "status": "pending",
-  "logged_at": "2026-10-03T06:00:30Z"
+  "status": "graded",
+  "logged_at": "2026-10-03T06:00:30Z",
+  "home_pts": 36.0,
+  "away_pts": 24.0,
+  "result": 1,
+  "net": 1.364
  },
  {
   "id": "2026_05_TB_DAL|spread",
