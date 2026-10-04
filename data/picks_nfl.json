@@ -27,7 +27,7 @@
   "home": "PHI",
   "team": "PHI",
   "side": null,
-  "line": 3.5,
+  "line": 4.0,
   "edge": 4.255,
   "units": 1.5,
   "pred_away": 22.243,
@@ -36,8 +36,10 @@
   "logged_at": "2026-10-03T06:00:30Z",
   "home_pts": 20.0,
   "away_pts": 24.0,
-  "result": -1,
-  "net": -1.5
+  "result": 0,
+  "net": 0.0,
+  "line_orig": 3.5,
+  "line_note": "line edited by site owner"
  },
  {
   "id": "2026_04_TEN_BAL|total",
@@ -49,7 +51,7 @@
   "home": "BAL",
   "team": null,
   "side": "Over",
-  "line": 42.5,
+  "line": 41.5,
   "edge": 4.189,
   "units": 1.5,
   "pred_away": 16.603,
@@ -58,8 +60,10 @@
   "logged_at": "2026-10-03T06:00:30Z",
   "home_pts": 24.0,
   "away_pts": 18.0,
-  "result": -1,
-  "net": -1.5
+  "result": 1,
+  "net": 1.364,
+  "line_orig": 42.5,
+  "line_note": "line edited by site owner"
  },
  {
   "id": "2026_04_IND_WAS|spread",
