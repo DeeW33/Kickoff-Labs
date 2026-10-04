@@ -68,8 +68,12 @@
   "units": 1.5,
   "pred_away": 22.876,
   "pred_home": 23.265,
-  "status": "pending",
-  "logged_at": "2026-10-03T06:00:30Z"
+  "status": "graded",
+  "logged_at": "2026-10-03T06:00:30Z",
+  "home_pts": 13.0,
+  "away_pts": 30.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_04_ARI_NYG|spread",
