@@ -76,9 +76,9 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
       <h3>Plays, newest first</h3>
-      <div id="lall"></div>
       <div class="scroll" id="ltable"></div>
       <a class="callout" href="#backtest"><b>See the backtest: how these rules would have done over past seasons</b><span>Every game predicted before it was played, using only earlier data. Not a live record.</span></a>
+      <div id="lall"></div>
     </section>
 
     <section id="plays">
@@ -203,12 +203,15 @@ function gameRow(g, i) {
   return `<tr><td><b>${esc(g.away)} @ ${esc(g.home)}</b>${g.neutral ? " *" : ""}<small>${timeOf(g.kickoff)} ${wx(g)}</small>${g.home_info ? `<button class="mbtn" data-t="${i}">Matchup details</button>` : ""}</td>
     <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${v}</td><td>${c || "—"}</td></tr>${g.home_info ? `<tr class="det" id="det${i}" hidden><td colspan="4">${matchupPanel(g)}</td></tr>` : ""}`;
 }
-function allPicks(a) {
+function allPicks(a, bt) {
   if (!a) return "";
-  const row = (name, v, u) => { const n = v.w + v.l; return `<tr><td>${name}</td><td>${recTxt(v)}</td><td>${n ? pct1(v.win_pct) : "—"}</td><td class="${u && n ? (v.units >= 0 ? "pos" : "neg") : ""}">${u && n ? units(v.units) : "—"}</td></tr>`; };
-  return `<details class="more"><summary>Record on every pick (all games, not just official plays)</summary>
-    <table><thead><tr><th>Pick type</th><th>Record</th><th>Win %</th><th>Units</th></tr></thead><tbody>${row("Straight up (winner)", a.su, false)}${row("Against the spread", a.spread, true)}${row("Over / under", a.total, true)}</tbody></table>
-    <p class="note">Covers the model's pick in every game, logged within three days of kickoff at the line then posted and never changed${a.since ? `, tracking since ${shortDay(a.since)}` : ""}. ${a.pending} games pending. Units are flat 1u at −110; straight-up picks are win/loss only. Nothing is backfilled.</p></details>`;
+  const cell = (v, u) => { if (!v) return "—"; const n = v.w + v.l; return n ? `${recTxt(v)} <small>${pct1(v.win_pct)}${u ? " · " + units(v.units) : ""}</small>` : "—"; };
+  const rows = [["Straight up (winner)", "su", false], ["Against the spread", "spread", true], ["Over / under", "total", true]];
+  const ys = bt && bt.ytd_season, ps = bt && bt.seasons ? `${bt.seasons[0]}–${bt.seasons[bt.seasons.length - 1]}` : "";
+  return `<h3>Every pick, every game</h3>
+    <div class="scroll"><table><thead><tr><th>Pick type</th><th>Live record<small>logged before kickoff</small></th>${bt ? `<th>${ys} season so far*<small>backtest</small></th><th>${ps} seasons*<small>backtest</small></th>` : ""}</tr></thead>
+    <tbody>${rows.map(([n, k, u]) => `<tr><td>${n}</td><td>${cell(a[k], u)}</td>${bt ? `<td>${cell(bt.ytd && bt.ytd[k], u)}</td><td>${cell(bt.past && bt.past[k], u)}</td>` : ""}</tr>`).join("")}</tbody></table></div>
+    <p class="note">The model's pick in every game, not just the official plays. The live column logs each game within three days of kickoff at the line then posted and never changes it${a.since ? `; it started ${shortDay(a.since)}` : ""}, with ${a.pending} games pending. *Backtest columns are not live: the model predicted each game using only earlier data, graded at the lines in the free data. They are shown beside the live record, never added into it. Spreads and totals are flat 1u at −110; straight-up picks are win/loss only.</p>`;
 }
 function liveRow(e) {
   const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
@@ -239,7 +242,7 @@ function render() {
     $("lchart").innerHTML = chart(lv.series);
     $("lnote").textContent = done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
       `Tracking is on. ${lv.pending} plays are logged and waiting for their games; results and the chart appear as games finish. Nothing is backfilled into this record.`;
-    $("lall").innerHTML = allPicks(lv.all);
+    $("lall").innerHTML = allPicks(lv.all, lv.all_bt);
     $("ltable").innerHTML = lv.picks.length ? `<table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lv.picks.map(liveRow).join("")}</tbody></table>` : `<div class="empty">No plays logged yet.</div>`;
   } else { $("lstats").innerHTML = $("lchart").innerHTML = $("ltable").innerHTML = $("lall").innerHTML = ""; $("lnote").textContent = "Betting lines aren't available for this league yet, so there are no official plays to track."; }
 
