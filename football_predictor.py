@@ -1555,6 +1555,50 @@ def update_pick_log(path, league, cands, games, now):
     return live, official
 
 
+def update_all_log(path, league, upcoming, games, now):
+    """Live record of EVERY game's model pick (straight up, spread side, over/under side), not just the official
+    top plays. A game is logged once, within LOCK_DAYS of kickoff and before it starts, at the line then posted,
+    and never edited. Spread/total picks are flat 1u at -110. Returns {su, spread, total, pending, since}."""
+    log = json.load(open(path)) if os.path.exists(path) else []
+    have = {e["id"] for e in log}
+    for u in upcoming:
+        if not _before_kickoff(u["kickoff"], now) or _utc(u["kickoff"]) - now > pd.Timedelta(days=LOCK_DAYS):
+            continue
+        base = {"game_id": u["game_id"], "league": league, "kickoff": u["kickoff"], "away": u["away"],
+                "home": u["home"], "units": 1.0, "status": "pending", "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}
+        rows = [("su", {"team": u["home"] if u["pred_margin"] > 0 else u["away"], "line": None, "side": None})]
+        if u.get("sim_spread"):
+            rows.append(("spread", {"team": u["sim_spread"]["team"], "line": u["sim_spread"]["line"], "side": None}))
+        if u.get("sim_total"):
+            rows.append(("total", {"team": None, "line": u["sim_total"]["line"], "side": u["sim_total"]["side"]}))
+        for typ, extra in rows:
+            if f"{u['game_id']}|{typ}" not in have:
+                log.append(_clean({"id": f"{u['game_id']}|{typ}", "type": typ, **base, **extra}))
+    meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
+    for e in log:
+        if e["status"] == "graded" or e["game_id"] not in meta.index:
+            continue
+        hp, ap = meta.at[e["game_id"], "home_pts"], meta.at[e["game_id"], "away_pts"]
+        if pd.isna(hp) or pd.isna(ap):
+            continue
+        hp, ap = float(hp), float(ap)
+        if e["type"] == "su":
+            mg = (hp - ap) if e["team"] == e["home"] else (ap - hp)
+            res = 1 if mg > 0 else -1 if mg < 0 else 0
+        else:
+            res, _ = grade_pick(e, hp, ap)
+        e.update(status="graded", home_pts=hp, away_pts=ap, result=res)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(log, f, indent=1)
+
+    def sub(t):
+        return rec([e["result"] for e in log if e["type"] == t and e["status"] == "graded"], None)
+    return {"su": sub("su"), "spread": sub("spread"), "total": sub("total"),
+            "pending": len({e["game_id"] for e in log if e["status"] == "pending"}),
+            "since": min([e["logged_at"][:10] for e in log], default=None)}
+
+
 def play_frame(allr, games):
     """Every official play the rules would have made, graded (for the backtest)."""
     d = allr[allr.mkt_spread.notna()].copy()
@@ -1764,6 +1808,8 @@ def cmd_export(args):
                           "kickoff": _kickoff(r), "away": r.away, "home": r.home, "pred_away": r.pred_away,
                           "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"]})
     live, official = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, cands, games, now)
+    all_live = update_all_log(f"data/allpicks_{lg.name}.json", lg.name, upcoming, games, now)
+    live["all"] = all_live
     for u in upcoming:   # only the locked top plays are "official"; every game keeps its sim side
         u["spread_play"] = official.get(f"{u['game_id']}|spread")
         u["total_play"] = official.get(f"{u['game_id']}|total")
