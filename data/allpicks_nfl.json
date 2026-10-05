@@ -1,0 +1,47 @@
+[
+ {
+  "id": "2026_04_ATL_NO|su",
+  "type": "su",
+  "game_id": "2026_04_ATL_NO",
+  "league": "nfl",
+  "kickoff": "2026-10-06T00:15:00Z",
+  "away": "ATL",
+  "home": "NO",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-05T22:25:26Z",
+  "team": "NO",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_04_ATL_NO|spread",
+  "type": "spread",
+  "game_id": "2026_04_ATL_NO",
+  "league": "nfl",
+  "kickoff": "2026-10-06T00:15:00Z",
+  "away": "ATL",
+  "home": "NO",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-05T22:25:26Z",
+  "team": "ATL",
+  "line": 1.5,
+  "side": null
+ },
+ {
+  "id": "2026_04_ATL_NO|total",
+  "type": "total",
+  "game_id": "2026_04_ATL_NO",
+  "league": "nfl",
+  "kickoff": "2026-10-06T00:15:00Z",
+  "away": "ATL",
+  "home": "NO",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-05T22:25:26Z",
+  "team": null,
+  "line": 47.5,
+  "side": "Under"
+ }
+]
