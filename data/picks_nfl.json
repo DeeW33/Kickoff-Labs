@@ -14,8 +14,12 @@
   "units": 1.5,
   "pred_away": 17.8,
   "pred_home": 27.446,
-  "status": "pending",
-  "logged_at": "2026-10-03T06:00:30Z"
+  "status": "graded",
+  "logged_at": "2026-10-03T06:00:30Z",
+  "home_pts": 15.0,
+  "away_pts": 10.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_04_LA_PHI|spread",
