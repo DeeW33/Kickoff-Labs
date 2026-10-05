@@ -1599,6 +1599,21 @@ def update_all_log(path, league, upcoming, games, now):
             "since": min([e["logged_at"][:10] for e in log], default=None)}
 
 
+def all_pick_blocks(d):
+    """Model's pick in EVERY game of a walk-forward backtest frame -> {su, spread, total} records.
+    Spread/total are flat 1u at -110; straight up is win/loss only."""
+    d = d[d.actual_margin.notna()]
+    su = np.sign(d.actual_margin) * np.where(d.pred_margin > 0, 1, -1)
+    out = {"su": rec(su)}
+    m = d[d.mkt_spread.notna()]
+    es = m.pred_margin - m.mkt_spread
+    out["spread"] = rec(np.where(es > 0, 1, -1) * np.sign(m.actual_margin - m.mkt_spread), np.ones(len(m)))
+    t = d[d.mkt_total.notna()]
+    et = t.pred_total - t.mkt_total
+    out["total"] = rec(np.where(et > 0, 1, -1) * np.sign(t.actual_total - t.mkt_total), np.ones(len(t)))
+    return out
+
+
 def play_frame(allr, games):
     """Every official play the rules would have made, graded (for the backtest)."""
     d = allr[allr.mkt_spread.notna()].copy()
@@ -1810,6 +1825,9 @@ def cmd_export(args):
     live, official = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, cands, games, now)
     all_live = update_all_log(f"data/allpicks_{lg.name}.json", lg.name, upcoming, games, now)
     live["all"] = all_live
+    ytd_all = allr[allr.season == current_season()]
+    live["all_bt"] = {"ytd": all_pick_blocks(ytd_all) if len(ytd_all) else None, "ytd_season": current_season(),
+                      "past": all_pick_blocks(allr[allr.season.isin(seasons2)]), "seasons": seasons2}
     for u in upcoming:   # only the locked top plays are "official"; every game keeps its sim side
         u["spread_play"] = official.get(f"{u['game_id']}|spread")
         u["total_play"] = official.get(f"{u['game_id']}|total")
