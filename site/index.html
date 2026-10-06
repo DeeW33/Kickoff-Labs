@@ -19,6 +19,7 @@ nav a{margin-left:1rem;text-decoration:none;color:var(--mute);font-size:.92rem}n
 .tabs{display:flex;gap:.4rem}
 .tab{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:.4rem .95rem;border-radius:999px;cursor:pointer}
 .tab[aria-selected=true]{background:var(--go);border-color:var(--go);color:#06140e;font-weight:700}
+nav a.on{color:var(--go);font-weight:700}
 .tab:focus-visible,a:focus-visible{outline:3px solid var(--go);outline-offset:2px}
 .stamp{color:var(--mute);font-size:.85rem}
 h1{font:800 2.1rem/1.1 Georgia,serif;margin:.6rem 0 .4rem}h2{font:700 1.35rem/1.2 Georgia,serif;margin:2.4rem 0 .5rem}
@@ -57,7 +58,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 <body>
 <header class="bar"><div class="nav">
   <a class="brand" href="#live">Kickoff <i>Labs</i></a>
-  <nav><a href="#live">Season record</a><a href="#plays">This week</a><a href="#games">All predictions</a><a href="#archive">Archive</a><a href="#backtest">Backtest</a><a href="#about">About</a></nav>
+  <nav><a href="#plays" data-p="plays">Official plays</a><a href="#games" data-p="games">All predictions</a><a href="#live" data-p="live">Record</a><a href="#archive" data-p="archive">Archive</a><a href="#backtest" data-p="backtest">Backtest</a><a href="#about" data-p="about">About</a></nav>
 </div></header>
 <main class="wrap">
   <div class="top">
@@ -83,6 +84,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 
     <section id="plays">
       <h2>This week's official plays</h2>
+      <div class="stats" id="pstats"></div>
       <p class="note">Each week the five plays where the model differs most from the Vegas line are the official plays: 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. They lock about three days before the week's first kickoff and don't change after that. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
@@ -94,12 +96,20 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
       <div id="days"></div>
     </section>
 
+
+  </div>
+
+  <div id="v-ar" hidden>
+    <a class="back" href="#plays">← Back to official plays</a>
     <section id="archive">
       <h2>Archive</h2>
       <p class="note">The official plays from every finished week, newest first. Open a week to see each pick and its result. Weeks marked “what-if” were never logged live: they show the plays the same rules would have picked, using only data from before each game. They are shown for reference and are not part of the live record.</p>
       <div id="archlist"></div>
     </section>
+  </div>
 
+  <div id="v-ab" hidden>
+    <a class="back" href="#plays">← Back to official plays</a>
     <section id="about">
       <h2>About</h2>
       <p class="note">Kickoff Labs rates teams with an Elo system plus recent efficiency (EPA per play), quarterback quality, injuries and weather, then projects each game's score and compares it with the Vegas lines. The model is less accurate than the betting market overall, so its differences from Vegas are most likely noise. Treat them as ideas to examine, not sure things.</p>
@@ -107,7 +117,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
   </div>
 
   <div id="v-bt" hidden>
-    <a class="back" href="#live">← Back to the live record</a>
+    <a class="back" href="#plays">← Back to official plays</a>
     <h1>Backtest: top 5 picks each week</h1>
     <p class="lead" id="btlead"></p>
 
@@ -287,9 +297,10 @@ function render() {
     $("lnote").textContent = useS ? `All official plays from the ${ys.season} season so far. Plays logged before kickoff since ${shortDay(lv.since)} are live results; earlier weeks are replayed with the same rules, using only earlier data for each game. ${lv.pending} plays pending.` :
       done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
       `Tracking is on. ${lv.pending} plays are logged and waiting for their games; results and the chart appear as games finish. Nothing is backfilled into this record.`;
+    $("pstats").innerHTML = $("lstats").innerHTML;
     $("lall").innerHTML = allPicks(lv, d.backtest_ytd);
     $("ltable").innerHTML = lv.picks.length ? `<table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lv.picks.map(liveRow).join("")}</tbody></table>` : `<div class="empty">No plays logged yet.</div>`;
-  } else { $("lstats").innerHTML = $("lchart").innerHTML = $("ltable").innerHTML = $("lall").innerHTML = ""; $("lnote").textContent = "Betting lines aren't available for this league yet, so there are no official plays to track."; }
+  } else { $("pstats").innerHTML = ""; $("lstats").innerHTML = $("lchart").innerHTML = $("ltable").innerHTML = $("lall").innerHTML = ""; $("lnote").textContent = "Betting lines aren't available for this league yet, so there are no official plays to track."; }
 
   const plays = [];
   d.games.forEach(g => { if (g.spread_play) plays.push({type: g.spread_play.kind === "ml" ? "ml" : "spread", g, p:g.spread_play}); if (g.total_play) plays.push({type:"total", g, p:g.total_play}); });
@@ -316,9 +327,13 @@ function render() {
   } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; ids.forEach(i => $(i).innerHTML = ""); $("btnote").textContent = ""; }
 }
 function route() {
-  const h = location.hash, bt = h.startsWith("#backtest"); $("v-main").hidden = bt; $("v-bt").hidden = !bt;
-  if (bt) { const t = h.length > 9 ? document.getElementById(h.slice(1)) : null; if (t) t.scrollIntoView(); else window.scrollTo(0, 0); }
-  else if (h.length > 1) { const t = document.getElementById(h.slice(1)); if (t) t.scrollIntoView(); }
+  const h = location.hash, m = (h.match(/^#(plays|games|live|archive|backtest|about)/) || [])[1] || "plays", pg = m;
+  const main = ["plays", "games", "live"].includes(pg);
+  $("v-main").hidden = !main; $("v-bt").hidden = pg !== "backtest"; $("v-ar").hidden = pg !== "archive"; $("v-ab").hidden = pg !== "about";
+  ["plays", "games", "live"].forEach(i => $(i).hidden = pg !== i);
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.p === pg));
+  const t = pg === "backtest" && h.length > 9 ? document.getElementById(h.slice(1)) : null;
+  if (t) t.scrollIntoView(); else window.scrollTo(0, 0);
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { L = t.dataset.l;
   document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t)); render(); }));
