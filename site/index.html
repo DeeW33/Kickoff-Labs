@@ -57,7 +57,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 <body>
 <header class="bar"><div class="nav">
   <a class="brand" href="#live">Kickoff <i>Labs</i></a>
-  <nav><a href="#live">Live record</a><a href="#plays">This week</a><a href="#games">All predictions</a><a href="#backtest">Backtest</a><a href="#about">About</a></nav>
+  <nav><a href="#live">Season record</a><a href="#plays">This week</a><a href="#games">All predictions</a><a href="#backtest">Backtest</a><a href="#about">About</a></nav>
 </div></header>
 <main class="wrap">
   <div class="top">
@@ -70,7 +70,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 
   <div id="v-main">
     <section id="live">
-      <h1>Live record</h1>
+      <h1>Season record</h1>
       <p class="lead">Each week the model's five highest-rated plays are the only official plays. They are logged before kickoff, then graded after the game. The free odds feed can lag the market, so a line is occasionally corrected to the number that was actually available when the pick was posted. Every correction is recorded in this site's public repository history (data/line_overrides.json).</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
@@ -249,10 +249,12 @@ function render() {
   const lv = d.live, hasLines = d.games.some(g => g.vegas_spread != null);
 
   if (lv && (hasLines || lv.picks.length)) {
-    const o = lv.record.all, done = o.w + o.l + o.p;
-    $("lstats").innerHTML = stats(o, "Live record of official plays");
-    $("lchart").innerHTML = chart(lv.series);
-    $("lnote").textContent = done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
+    const ys = d.backtest_ytd, useS = ys && ys.overall && ys.overall.all.w + ys.overall.all.l + ys.overall.all.p > 0;
+    const o = useS ? ys.overall.all : lv.record.all, done = o.w + o.l + o.p;
+    $("lstats").innerHTML = stats(o, useS ? `${ys.season} season record, all official plays (Weeks 1–${ys.weeks_done})` : "Live record of official plays");
+    $("lchart").innerHTML = chart(useS ? ys.series : lv.series);
+    $("lnote").textContent = useS ? `All official plays from the ${ys.season} season so far. Plays logged before kickoff since ${shortDay(lv.since)} are live results; earlier weeks are replayed with the same rules, using only earlier data for each game. ${lv.pending} plays pending.` :
+      done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
       `Tracking is on. ${lv.pending} plays are logged and waiting for their games; results and the chart appear as games finish. Nothing is backfilled into this record.`;
     $("lall").innerHTML = allPicks(lv, d.backtest_ytd);
     $("ltable").innerHTML = lv.picks.length ? `<table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lv.picks.map(liveRow).join("")}</tbody></table>` : `<div class="empty">No plays logged yet.</div>`;
