@@ -187,12 +187,17 @@ function matchupPanel(g) {
   return `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
     <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. EPA is expected points added per play (college uses the similar PPA). Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
 }
+function histNote(x) {
+  const c = D[L] && D[L].calibration; if (!c) return "";
+  const rows = c[x.type === "total" ? "total" : "spread"] || [], r = rows.find(r => x.p.edge >= r.lo && x.p.edge < r.hi);
+  return r && r.win_pct != null ? `<small>${pct(r.win_pct)} historically at this gap (${r.w + r.l} plays)</small>` : "";
+}
 function playCard(x) {
   const g = x.g, p = x.p, spread = x.type !== "total";
   return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} of ${p.of || 5} · ${p.units}u</span> ${x.type === "ml" ? "Moneyline" : spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
     <div class="pick">${spread ? esc(spreadTxt(p)) : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
     <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
-    <span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
+    ${p.prob != null ? `<span>Simulator prediction: <b>${pct(p.prob)}</b>${histNote(x)}</span>` : ""}<span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
 }
 function gameRow(g, i) {
   let c = "";
