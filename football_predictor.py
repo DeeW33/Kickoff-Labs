@@ -1701,6 +1701,41 @@ def play_frame(allr, games):
     return out
 
 
+def replay_weeks(allr, games, season, skip_weeks):
+    """Official plays the rules WOULD have made for finished weeks that were never logged live, built from the
+    model's pre-game predictions (walk-forward) and graded. Returned in the same shape as live log entries."""
+    out = []
+    d = allr[(allr.season == season) & allr.mkt_spread.notna()]
+    d = d[games.loc[d.index, "week"].isin(
+        [w for w, g in games[games.season == season].groupby("week") if g.home_pts.notna().all() and g.away_pts.notna().all()])]
+    byw = defaultdict(list)
+    for idx, r in d.iterrows():
+        g = games.loc[idx]
+        w = int(g.week)
+        if (season, w) in skip_weeks or pd.isna(g.home_pts) or pd.isna(g.away_pts):
+            continue
+        pk = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
+                        r.mkt_ml_home, r.mkt_ml_away)
+        for typ in ("spread", "total"):
+            p = pk[f"{typ}_play"]
+            if not p:
+                continue
+            e = {"id": f"{_gid(g.game_id)}|{typ}", "type": p.get("kind") or typ, "ml": p.get("ml"), "game_id": _gid(g.game_id),
+                 "season": int(season), "week": w, "kickoff": _kickoff(g), "away": g.away, "home": g.home,
+                 "team": p.get("team"), "side": p.get("side"), "line": p["line"], "edge": p["edge"], "units": p["units"],
+                 "status": "graded", "replay": True, "home_pts": float(g.home_pts), "away_pts": float(g.away_pts)}
+            e["result"], net = grade_pick(e, e["home_pts"], e["away_pts"])
+            e["net"] = round(net, 3)
+            byw[w].append(e)
+    for w, es in byw.items():
+        es = sorted(es, key=lambda e: -e["edge"])[:TOP_N]
+        es.sort(key=lambda e: e["kickoff"])
+        out.append({"season": int(season), "week": w, "replay": True, "picks": _clean(es),
+                    "record": rec([e["result"] for e in es], [e["units"] for e in es],
+                                  [ml_pay(e["ml"]) if e["type"] == "ml" else WIN_UNITS for e in es])})
+    return sorted(out, key=lambda a: -a["week"])
+
+
 def hist_calibration(allr, games):
     """Out-of-sample hit rate of every play with a 3+ point gap, by gap size and bet type."""
     global TOP_N
@@ -1908,6 +1943,10 @@ def cmd_export(args):
     live, official = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, cands, games, now)
     all_live = update_all_log(f"data/allpicks_{lg.name}.json", lg.name, upcoming, games, now)
     live["all"] = all_live
+    logged = {(x["season"], x["week"]) for x in live.get("archive", [])} | {
+        (x["season"], x["week"]) for x in live["picks"] if x.get("season") is not None}
+    live["archive"] = sorted(live.get("archive", []) + replay_weeks(allr, games, current_season(), logged),
+                             key=lambda a: (-a["season"], -a["week"]))
     ytd_all = allr[allr.season == current_season()]
     live["all_bt"] = {"ytd": all_pick_blocks(ytd_all) if len(ytd_all) else None, "ytd_season": current_season(),
                       "past": all_pick_blocks(allr[allr.season.isin(seasons2)]), "seasons": seasons2,
