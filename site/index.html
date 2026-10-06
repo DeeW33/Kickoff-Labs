@@ -96,7 +96,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 
     <section id="archive">
       <h2>Archive</h2>
-      <p class="note">The official plays from every finished week, newest first. Open a week to see each pick and its result. Only plays logged before kickoff appear here.</p>
+      <p class="note">The official plays from every finished week, newest first. Open a week to see each pick and its result. Weeks marked “what-if” were never logged live: they show the plays the same rules would have picked, using only data from before each game. They are shown for reference and are not part of the live record.</p>
       <div id="archlist"></div>
     </section>
 
@@ -252,7 +252,7 @@ function lastWeekBlock(lw) {
 function archiveBlock(ar) {
   if (!ar || !ar.length) return `<div class="empty">Finished weeks will appear here once a full week of games is complete.</div>`;
   return ar.map(w => { const r = w.record;
-    return `<details class="more"><summary>${w.season} · Week ${w.week} <small>${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}</small></summary>
+    return `<details class="more"><summary>${w.season} · Week ${w.week}${w.replay ? " (what-if)" : ""} <small>${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}</small></summary>
       <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${w.picks.map(liveRow).join("")}</tbody></table></div></details>`; }).join("");
 }
 function liveRow(e) {
