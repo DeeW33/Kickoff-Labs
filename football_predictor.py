@@ -1694,6 +1694,26 @@ def play_frame(allr, games):
     return out
 
 
+def hist_calibration(allr, games):
+    """Out-of-sample hit rate of every play with a 3+ point gap, by gap size and bet type."""
+    global TOP_N
+    old = TOP_N
+    TOP_N = 999
+    try:
+        pf = play_frame(allr, games)
+    finally:
+        TOP_N = old
+    out = {}
+    for name, sel in (("spread", pf.type != "total"), ("total", pf.type == "total")):
+        d, rows = pf[sel], []
+        for lo, hi in ((EDGE_PLAY, 4.0), (4.0, 5.0), (5.0, 99.0)):
+            x = d[(d.edge >= lo) & (d.edge < hi)]
+            w, l = int((x.res == 1).sum()), int((x.res == -1).sum())
+            rows.append({"lo": lo, "hi": hi, "w": w, "l": l, "win_pct": w / (w + l) if w + l else None})
+        out[name] = rows
+    return out
+
+
 def backtest_block(pf):
     def three(g):
         r = lambda x: rec(x.res, x.units, x.pay)
@@ -1845,7 +1865,7 @@ def cmd_export(args):
                              "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
                              **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total, r.mkt_ml_home, r.mkt_ml_away)})
 
-    allr = run_backtest(lg, games, feats, cols, args.model, max(args.test_seasons, 4), wu)
+    allr = run_backtest(lg, games, feats, cols, args.model, max(args.test_seasons, 11 if lg.name == "nfl" else 4), wu)
     recent_df = allr.join(games[["date", "home", "away", "home_pts", "away_pts"]]).sort_values("date").tail(30)
     recent = [{"date": r.date.strftime("%Y-%m-%d"), "home": r.home, "away": r.away,
                "pred_home": r.pred_home, "pred_away": r.pred_away,
@@ -1885,14 +1905,26 @@ def cmd_export(args):
     live["all_bt"] = {"ytd": all_pick_blocks(ytd_all) if len(ytd_all) else None, "ytd_season": current_season(),
                       "past": all_pick_blocks(allr[allr.season.isin(seasons2)]), "seasons": seasons2,
                       "by_season": {str(int(x)): all_pick_blocks(allr[allr.season == x]) for x in seasons2}}
+    ok = allr.dropna(subset=["actual_margin", "pred_margin"])
+    sig_m = float((ok.actual_margin - ok.pred_margin).std())      # out-of-sample error of the model's margin / total
+    sig_t = float((ok.actual_total - ok.pred_total).std())
     for u in upcoming:   # only the locked top plays are "official"; every game keeps its sim side
         u["spread_play"] = official.get(f"{u['game_id']}|spread")
         u["total_play"] = official.get(f"{u['game_id']}|total")
+        sp_, tp_ = u["spread_play"], u["total_play"]
+        if sp_:
+            if sp_.get("kind") == "ml":
+                hp = u["home_win_prob"]
+                sp_["prob"] = hp if sp_["team"] == u["home"] else 1 - hp
+            else:
+                sp_["prob"] = float(norm.cdf(sp_["edge"] / sig_m))
+        if tp_:
+            tp_["prob"] = float(norm.cdf(tp_["edge"] / sig_t))
 
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
-        "games": upcoming, "recent": recent, "backtest": by_season, "backtest_record": bt2, "backtest_ytd": bt_ytd, "backtest_seasons": seasons2, "live": live, "stats_season": stats_season, "stats_pool": pool_n,
+        "games": upcoming, "recent": recent, "backtest": by_season, "backtest_record": bt2, "backtest_ytd": bt_ytd, "backtest_seasons": seasons2, "live": live, "calibration": hist_calibration(allr, games), "stats_season": stats_season, "stats_pool": pool_n,
         "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG, "top_n": TOP_N}})
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
