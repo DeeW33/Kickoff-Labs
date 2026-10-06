@@ -1883,7 +1883,8 @@ def cmd_export(args):
     live["all"] = all_live
     ytd_all = allr[allr.season == current_season()]
     live["all_bt"] = {"ytd": all_pick_blocks(ytd_all) if len(ytd_all) else None, "ytd_season": current_season(),
-                      "past": all_pick_blocks(allr[allr.season.isin(seasons2)]), "seasons": seasons2}
+                      "past": all_pick_blocks(allr[allr.season.isin(seasons2)]), "seasons": seasons2,
+                      "by_season": {str(int(x)): all_pick_blocks(allr[allr.season == x]) for x in seasons2}}
     for u in upcoming:   # only the locked top plays are "official"; every game keeps its sim side
         u["spread_play"] = official.get(f"{u['game_id']}|spread")
         u["total_play"] = official.get(f"{u['game_id']}|total")
