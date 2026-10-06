@@ -57,7 +57,7 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 <body>
 <header class="bar"><div class="nav">
   <a class="brand" href="#live">Kickoff <i>Labs</i></a>
-  <nav><a href="#live">Season record</a><a href="#plays">This week</a><a href="#games">All predictions</a><a href="#backtest">Backtest</a><a href="#about">About</a></nav>
+  <nav><a href="#live">Season record</a><a href="#plays">This week</a><a href="#games">All predictions</a><a href="#archive">Archive</a><a href="#backtest">Backtest</a><a href="#about">About</a></nav>
 </div></header>
 <main class="wrap">
   <div class="top">
@@ -92,6 +92,12 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
       <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks one of the week's five official plays; "Sim" is the model's side everywhere else (not a bet).</p>
       <div id="lastwk"></div>
       <div id="days"></div>
+    </section>
+
+    <section id="archive">
+      <h2>Archive</h2>
+      <p class="note">The official plays from every finished week, newest first. Open a week to see each pick and its result. Only plays logged before kickoff appear here.</p>
+      <div id="archlist"></div>
     </section>
 
     <section id="about">
@@ -243,6 +249,12 @@ function lastWeekBlock(lw) {
     <p class="note">${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}. Final results for the official plays of the week that just ended.</p>
     <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lw.picks.map(liveRow).join("")}</tbody></table></div>`;
 }
+function archiveBlock(ar) {
+  if (!ar || !ar.length) return `<div class="empty">Finished weeks will appear here once a full week of games is complete.</div>`;
+  return ar.map(w => { const r = w.record;
+    return `<details class="more"><summary>${w.season} · Week ${w.week} <small>${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}</small></summary>
+      <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${w.picks.map(liveRow).join("")}</tbody></table></div></details>`; }).join("");
+}
 function liveRow(e) {
   const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
   return `<tr><td>${esc(e.away)} @ ${esc(e.home)}<small>${shortDay(e.kickoff)}</small></td><td><b>${esc(pickLabel(e))}</b></td><td>${e.units}u</td>
@@ -261,7 +273,7 @@ function weekTable(ws) {
 
 function render() {
   const d = D[L];
-  if (!d) { $("stamp").textContent = ""; ["lstats","lchart","lall","ltable","playlist","bstats","bchart","btable"].forEach(i => $(i).innerHTML = "");
+  if (!d) { $("stamp").textContent = ""; ["lstats","lchart","lall","ltable","archlist","playlist","bstats","bchart","btable"].forEach(i => $(i).innerHTML = "");
     $("lnote").textContent = ""; $("days").innerHTML = `<div class="empty">No data for this league yet. It appears after the next scheduled update.</div>`; return; }
   $("stamp").textContent = `${d.league.toUpperCase()} · updated ${new Date(d.generated_at).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}`;
   const lv = d.live, hasLines = d.games.some(g => g.vegas_spread != null);
@@ -286,6 +298,7 @@ function render() {
   plays.sort((a, b) => a.g.week - b.g.week || a.p.rank - b.p.rank || b.p.edge - a.p.edge);
   $("playlist").innerHTML = plays.length ? plays.map((x, i) => (i === 0 || plays[i - 1].g.week !== x.g.week ? `<h3>Week ${x.g.week}: top ${x.p.of || 5} plays</h3>` : "") + playCard(x)).join("") : `<div class="empty">${hasLines ? "No official plays are locked yet. This week's top five lock about three days before the first kickoff; until then every game shows the model's side in the table below." : "Vegas lines aren't available for this league yet."}</div>`;
 
+  $("archlist").innerHTML = archiveBlock(d.live && d.live.archive);
   $("lastwk").innerHTML = lastWeekBlock(d.live && d.live.last_week);
   let html = "", last = "", buf = "", n = 0;
   const flush = () => { if (buf) html += `<div class="scroll"><table><thead><tr><th>Matchup</th><th>Model score</th><th>Vegas line</th><th>Official play · model sides</th></tr></thead><tbody>${buf}</tbody></table></div>`; buf = ""; };
