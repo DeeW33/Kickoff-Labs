@@ -206,6 +206,19 @@ function gameRow(g, i) {
   return `<tr><td><b>${esc(g.away)} @ ${esc(g.home)}</b>${g.neutral ? " *" : ""}<small>${timeOf(g.kickoff)} ${wx(g)}</small>${g.home_info ? `<button class="mbtn" data-t="${i}">Matchup details</button>` : ""}</td>
     <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${v}</td><td>${c || "—"}</td></tr>${g.home_info ? `<tr class="det" id="det${i}" hidden><td colspan="4">${matchupPanel(g)}</td></tr>` : ""}`;
 }
+function gameStats(a) {
+  if (!a || !a.su || !a.spread) return "";
+  const one = (v, label) => { const n = v.w + v.l; return `<div class="stat"><b>${n ? pct1(v.win_pct) : "—"}</b><span>${label}${n ? `<br>${recTxt(v)}` : ""}</span></div>`; };
+  return one(a.spread, "Against the spread, every game") + one(a.su, "Straight up, every game");
+}
+function gameTable(a, ss) {
+  if (!a || !a.by_season) return "";
+  const cell = v => { const n = v.w + v.l; return n ? `${recTxt(v)} <small>${pct1(v.win_pct)}</small>` : "—"; };
+  const rows = ss.filter(s => a.by_season[s]).map(s => `<tr><td>${s} season</td><td>${cell(a.by_season[s].su)}</td><td>${cell(a.by_season[s].spread)}</td></tr>`).join("") +
+    `<tr><td>All seasons</td><td>${cell(a.past.su)}</td><td>${cell(a.past.spread)}</td></tr>`;
+  return `<h3>Every game, not just official plays</h3><div class="scroll"><table><thead><tr><th>Period</th><th>Straight up</th><th>Against the spread</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">The model's pick in every game it predicted, regardless of the size of the gap. Straight up is how often the model's predicted winner won; against the spread is how often its side covered the Vegas line. Pushes are left out of the win rates.</p>`;
+}
 function allPicks(lv, ytd) {
   if (!lv || !lv.record) return "";
   const lw = lv.last_week;
@@ -252,6 +265,7 @@ function render() {
     const ys = d.backtest_ytd, useS = ys && ys.overall && ys.overall.all.w + ys.overall.all.l + ys.overall.all.p > 0;
     const o = useS ? ys.overall.all : lv.record.all, done = o.w + o.l + o.p;
     $("lstats").innerHTML = stats(o, useS ? `${ys.season} season record, all official plays (Weeks 1–${ys.weeks_done})` : "Live record of official plays");
+    $("lstats").innerHTML += gameStats(lv.all_bt && lv.all_bt.ytd);
     $("lchart").innerHTML = chart(useS ? ys.series : lv.series);
     $("lnote").textContent = useS ? `All official plays from the ${ys.season} season so far. Plays logged before kickoff since ${shortDay(lv.since)} are live results; earlier weeks are replayed with the same rules, using only earlier data for each game. ${lv.pending} plays pending.` :
       done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
@@ -279,7 +293,7 @@ function render() {
     const yrs = ss.length > 1 ? `${ss[0]} to ${ss[ss.length - 1]}` : ss[0];
     $("btlead").textContent = `Each week, the model's five biggest gaps from the Vegas line are the official plays. This page shows what that rule would have done in past seasons. Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is not the live record, which only counts picks logged before kickoff.`;
     $("pasthead").textContent = `Past ${ss.length} seasons (${yrs})`;
-    $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss);
+    $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bstats").innerHTML += gameStats(d.live && d.live.all_bt && d.live.all_bt.past); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss) + gameTable(d.live && d.live.all_bt, ss);
     $("btnote").textContent = `Five picks a week is about 85 a season, so even a few seasons is a small sample, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds for spreads and totals (1 unit = 1% of a bankroll); moneyline plays, used when the spread is within 2 points, are paid at the posted moneyline. Spreads and totals are graded at the line in the free data.`;
   } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; ids.forEach(i => $(i).innerHTML = ""); $("btnote").textContent = ""; }
 }
