@@ -8,11 +8,14 @@
   "away": "ATL",
   "home": "NO",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-05T22:25:26Z",
   "team": "NO",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 24.0,
+  "away_pts": 45.0,
+  "result": -1
  },
  {
   "id": "2026_04_ATL_NO|spread",
@@ -23,11 +26,14 @@
   "away": "ATL",
   "home": "NO",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-05T22:25:26Z",
   "team": "ATL",
   "line": 1.5,
-  "side": null
+  "side": null,
+  "home_pts": 24.0,
+  "away_pts": 45.0,
+  "result": 1
  },
  {
   "id": "2026_04_ATL_NO|total",
@@ -38,10 +44,58 @@
   "away": "ATL",
   "home": "NO",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-05T22:25:26Z",
   "team": null,
   "line": 47.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 24.0,
+  "away_pts": 45.0,
+  "result": -1
+ },
+ {
+  "id": "2026_05_TB_DAL|su",
+  "type": "su",
+  "game_id": "2026_05_TB_DAL",
+  "league": "nfl",
+  "kickoff": "2026-10-09T00:15:00Z",
+  "away": "TB",
+  "home": "DAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-06T11:05:38Z",
+  "team": "DAL",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_05_TB_DAL|spread",
+  "type": "spread",
+  "game_id": "2026_05_TB_DAL",
+  "league": "nfl",
+  "kickoff": "2026-10-09T00:15:00Z",
+  "away": "TB",
+  "home": "DAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-06T11:05:38Z",
+  "team": "TB",
+  "line": 9.5,
+  "side": null
+ },
+ {
+  "id": "2026_05_TB_DAL|total",
+  "type": "total",
+  "game_id": "2026_05_TB_DAL",
+  "league": "nfl",
+  "kickoff": "2026-10-09T00:15:00Z",
+  "away": "TB",
+  "home": "DAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-06T11:05:38Z",
+  "team": null,
+  "line": 47.5,
+  "side": "Over"
  }
 ]
