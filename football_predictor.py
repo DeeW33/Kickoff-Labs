@@ -1238,6 +1238,7 @@ def run_backtest(lg, games, feats, cols, kind, n_test, warmup):
         pr["actual_margin"], pr["actual_total"] = margin[te], total[te]
         pr["elo_diff"] = feats.loc[te, "elo_diff"]
         pr["mkt_spread"], pr["mkt_total"] = games.loc[te, "mkt_spread"], games.loc[te, "mkt_total"]
+        pr["mkt_ml_home"], pr["mkt_ml_away"] = games.loc[te, "mkt_ml_home"], games.loc[te, "mkt_ml_away"]
         frames.append(pr)
     if not frames:
         sys.exit("Not enough data to backtest.")
@@ -1328,6 +1329,12 @@ def cmd_predict(args):
 # ---- Betting logic: turns model-vs-Vegas gaps into picks, and grades the same rules historically
 EDGE_PLAY, EDGE_STRONG = 3.0, 4.0   # points of disagreement with Vegas -> play / strong play (1.5u)
 WIN_UNITS = 100 / 110               # profit per 1u risked at -110
+ML_BAND = 2.0                       # Vegas spread within this many points (either way) -> pick the moneyline instead
+
+
+def ml_pay(odds):
+    """Profit per 1u risked on an American moneyline."""
+    return odds / 100 if odds > 0 else 100 / -odds
 
 
 def wilson(w, n, z=1.96):
@@ -1343,16 +1350,25 @@ def american_prob(ml):
     return 100 / (ml + 100) if ml > 0 else -ml / (-ml + 100)
 
 
-def make_picks(home, away, pred_margin, pred_total, v_spread, v_total):
+def make_picks(home, away, pred_margin, pred_total, v_spread, v_total, ml_home=None, ml_away=None):
     """v_spread = Vegas expected home margin (+ = home favored)."""
     out = {"sim_spread": None, "sim_total": None, "spread_play": None, "total_play": None}
     if pd.notna(v_spread):
         e = pred_margin - v_spread
         team, line = (home, -v_spread) if e > 0 else (away, v_spread)
-        out["sim_spread"] = {"team": team, "line": line, "edge": abs(e)}
-        if abs(e) >= EDGE_PLAY:
-            out["spread_play"] = {"team": team, "line": line, "edge": abs(e),
-                                  "units": 1.5 if abs(e) >= EDGE_STRONG else 1.0}
+        odds = {home: ml_home, away: ml_away}
+        if abs(v_spread) <= ML_BAND and pd.notna(odds[home]) and pd.notna(odds[away]):
+            # a near pick'em: bet the moneyline on the side the model likes
+            team = home if e > 0 else away
+            out["sim_spread"] = {"team": team, "line": None, "ml": float(odds[team]), "edge": abs(e)}
+            if abs(e) >= EDGE_PLAY:
+                out["spread_play"] = {"team": team, "line": None, "ml": float(odds[team]), "kind": "ml",
+                                      "edge": abs(e), "units": 1.5 if abs(e) >= EDGE_STRONG else 1.0}
+        else:
+            out["sim_spread"] = {"team": team, "line": line, "edge": abs(e)}
+            if abs(e) >= EDGE_PLAY:
+                out["spread_play"] = {"team": team, "line": line, "edge": abs(e),
+                                      "units": 1.5 if abs(e) >= EDGE_STRONG else 1.0}
     if pd.notna(v_total):
         e = pred_total - v_total
         side = "Over" if e > 0 else "Under"
@@ -1363,12 +1379,13 @@ def make_picks(home, away, pred_margin, pred_total, v_spread, v_total):
     return out
 
 
-def rec(res, units=None):
+def rec(res, units=None, pay=None):
     res = np.asarray(res, float)
     u = np.ones(len(res)) if units is None else np.asarray(units, float)
+    pw = np.full(len(res), WIN_UNITS) if pay is None else np.asarray(pay, float)
     w, l = int((res == 1).sum()), int((res == -1).sum())
     lo, hi = wilson(w, w + l)
-    net = float((u * np.where(res == 1, WIN_UNITS, np.where(res == -1, -1.0, 0.0))).sum())
+    net = float((u * np.where(res == 1, pw, np.where(res == -1, -1.0, 0.0))).sum())
     return {"w": w, "l": l, "p": int((res == 0).sum()), "win_pct": w / (w + l) if w + l else None,
             "lo": lo, "hi": hi, "units": net, "staked": float(u[res != 0].sum())}
 
@@ -1427,6 +1444,10 @@ def _before_kickoff(k, now):
 
 
 def grade_pick(e, hp, ap):
+    if e["type"] == "ml":
+        mg = (hp - ap) if e["team"] == e["home"] else (ap - hp)
+        res = 1 if mg > 0 else -1 if mg < 0 else 0
+        return res, e["units"] * (ml_pay(e["ml"]) if res == 1 else -1.0 if res == -1 else 0.0)
     if e["type"] == "spread":
         d = ((hp - ap) if e["team"] == e["home"] else (ap - hp)) + e["line"]
     else:
@@ -1485,7 +1506,7 @@ def update_pick_log(path, league, cands, games, now):
                 if p and f"{u['game_id']}|{typ}" not in have]
         pool.sort(key=lambda x: -x[0])
         for edge, typ, u, p in pool[:TOP_N - cnt[k]]:
-            log.append(_clean({"id": f"{u['game_id']}|{typ}", "type": typ, "game_id": u["game_id"], "league": league,
+            log.append(_clean({"id": f"{u['game_id']}|{typ}", "type": p.get("kind") or typ, "ml": p.get("ml"), "game_id": u["game_id"], "league": league,
                                "season": u["season"], "week": u["week"], "kickoff": u["kickoff"],
                                "away": u["away"], "home": u["home"], "team": p.get("team"), "side": p.get("side"),
                                "line": p["line"], "edge": p["edge"], "units": p["units"],
@@ -1533,7 +1554,8 @@ def update_pick_log(path, league, cands, games, now):
 
     def sub(t=None):
         xs = [e for e in done if t in (None, e["type"])]
-        return rec([e["result"] for e in xs], [e["units"] for e in xs])
+        return rec([e["result"] for e in xs], [e["units"] for e in xs],
+                   [ml_pay(e["ml"]) if e["type"] == "ml" else WIN_UNITS for e in xs])
     series, cum = [], 0.0
     for e in done:
         cum += e["net"]
@@ -1542,15 +1564,33 @@ def update_pick_log(path, league, cands, games, now):
             series[-1][1] = round(cum, 2)
         else:
             series.append([day, round(cum, 2)])
-    live = {"record": {"all": sub(), "spread": sub("spread"), "total": sub("total")}, "series": series,
+    live = {"record": {"all": sub(), "spread": sub("spread"), "ml": sub("ml"), "total": sub("total")}, "series": series,
             "picks": pend + done[::-1][:50], "pending": len(pend),
             "since": min([e["logged_at"][:10] for e in log], default=None)}
+    # most recent week whose games have ALL finished: its official plays become "last week"
+    wdone = {k: bool(g.home_pts.notna().all() and g.away_pts.notna().all())
+             for k, g in games.groupby(["season", "week"])}
+    byw_ = defaultdict(list)
+    for e in log:
+        byw_[wk(e)].append(e)
+    fin_weeks = [k for k, es in byw_.items() if k[0] is not None and wdone.get((k[0], k[1])) and
+                 all(e["status"] == "graded" for e in es)]
+    if fin_weeks:
+        k = max(fin_weeks)
+        es = sorted(byw_[k], key=lambda e: e["kickoff"])
+        ppay = lambda xs: [ml_pay(e["ml"]) if e["type"] == "ml" else WIN_UNITS for e in xs]
+        def rw(t=None):
+            xs = [e for e in es if t in (None, e["type"])]
+            return rec([e["result"] for e in xs], [e["units"] for e in xs], ppay(xs))
+        live["last_week"] = {"season": k[0], "week": k[1], "picks": es,
+                             "record": {"all": rw(), "spread": rw("spread"), "ml": rw("ml"), "total": rw("total")}}
     official, byk = {}, defaultdict(list)
     for e in log:
         byk[wk(e)].append(e)
     for es in byk.values():
         for r, e in enumerate(sorted(es, key=lambda e: -e["edge"]), 1):
             official[e["id"]] = {"team": e.get("team"), "side": e.get("side"), "line": e["line"],
+                                 "kind": e["type"] if e["type"] == "ml" else None, "ml": e.get("ml"),
                                  "edge": e["edge"], "units": e["units"], "rank": r, "of": TOP_N}
     return live, official
 
@@ -1568,7 +1608,11 @@ def update_all_log(path, league, upcoming, games, now):
                 "home": u["home"], "units": 1.0, "status": "pending", "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}
         rows = [("su", {"team": u["home"] if u["pred_margin"] > 0 else u["away"], "line": None, "side": None})]
         if u.get("sim_spread"):
-            rows.append(("spread", {"team": u["sim_spread"]["team"], "line": u["sim_spread"]["line"], "side": None}))
+            ss = u["sim_spread"]
+            if ss.get("ml") is not None:
+                rows.append(("ml", {"team": ss["team"], "line": None, "side": None, "ml": ss["ml"]}))
+            else:
+                rows.append(("spread", {"team": ss["team"], "line": ss["line"], "side": None}))
         if u.get("sim_total"):
             rows.append(("total", {"team": None, "line": u["sim_total"]["line"], "side": u["sim_total"]["side"]}))
         for typ, extra in rows:
@@ -1625,6 +1669,16 @@ def play_frame(allr, games):
     sp["type"] = "spread"
     sp["res"] = np.where(es[sp.index] > 0, 1, -1) * np.sign(sp.actual_margin - sp.mkt_spread)
     sp["units"] = np.where(es[sp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
+    sp["pay"] = WIN_UNITS
+    # near pick'ems (spread within ML_BAND) become moneyline plays on the model's side
+    hasml = sp.mkt_ml_home.notna() & sp.mkt_ml_away.notna() & (sp.mkt_spread.abs() <= ML_BAND)
+    if hasml.any():
+        m = sp[hasml]
+        pick_home = (es[m.index] > 0).to_numpy()
+        sp.loc[m.index, "type"] = "ml"
+        sp.loc[m.index, "res"] = np.where(pick_home, 1, -1) * np.sign(m.actual_margin)
+        odds = np.where(pick_home, m.mkt_ml_home, m.mkt_ml_away)
+        sp.loc[m.index, "pay"] = np.where(odds > 0, odds / 100, 100 / np.abs(odds))
     t = d[d.mkt_total.notna()]
     et = t.pred_total - t.mkt_total
     tp = t[et.abs() >= EDGE_PLAY].copy()
@@ -1632,17 +1686,19 @@ def play_frame(allr, games):
     tp["type"] = "total"
     tp["res"] = np.where(et[tp.index] > 0, 1, -1) * np.sign(tp.actual_total - tp.mkt_total)
     tp["units"] = np.where(et[tp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
-    cols = ["date", "season", "week", "type", "res", "units", "edge"]
+    tp["pay"] = WIN_UNITS
+    cols = ["date", "season", "week", "type", "res", "units", "edge", "pay"]
     out = pd.concat([sp[cols], tp[cols]])
     out = out.sort_values("edge", ascending=False).groupby(["season", "week"]).head(TOP_N).sort_values("date")
-    out["net"] = out.units * np.where(out.res == 1, WIN_UNITS, np.where(out.res == -1, -1.0, 0.0))
+    out["net"] = out.units * np.where(out.res == 1, out.pay, np.where(out.res == -1, -1.0, 0.0))
     return out
 
 
 def backtest_block(pf):
     def three(g):
-        return {"all": rec(g.res, g.units), "spread": rec(g[g.type == "spread"].res, g[g.type == "spread"].units),
-                "total": rec(g[g.type == "total"].res, g[g.type == "total"].units)}
+        r = lambda x: rec(x.res, x.units, x.pay)
+        return {"all": r(g), "spread": r(g[g.type == "spread"]), "ml": r(g[g.type == "ml"]),
+                "total": r(g[g.type == "total"])}
     ser = pf.groupby(pf.date.dt.strftime("%Y-%m-%d")).net.sum().cumsum()
     return {"overall": three(pf), "by_season": {str(int(k)): three(g) for k, g in pf.groupby("season")},
             "series": [[k, round(float(v), 2)] for k, v in ser.items()]}
@@ -1787,7 +1843,7 @@ def cmd_export(args):
                              "home_info": team_card("home", r.home, f, ts, qbn, ctx.espn), "away_info": team_card("away", r.away, f, ts, qbn, ctx.espn),
                              "vegas_spread": r.mkt_spread, "vegas_total": r.mkt_total,
                              "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
-                             **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)})
+                             **make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total, r.mkt_ml_home, r.mkt_ml_away)})
 
     allr = run_backtest(lg, games, feats, cols, args.model, max(args.test_seasons, 4), wu)
     recent_df = allr.join(games[["date", "home", "away", "home_pts", "away_pts"]]).sort_values("date").tail(30)
@@ -1818,7 +1874,7 @@ def cmd_export(args):
     cands = []
     if upc.any():
         for idx, r in games.loc[upc].join(model.predict(feats.loc[upc, cols])).iterrows():
-            pk = make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total)
+            pk = make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total, r.mkt_ml_home, r.mkt_ml_away)
             cands.append({"game_id": _gid(r.game_id), "season": int(r.season), "week": int(r.week),
                           "kickoff": _kickoff(r), "away": r.away, "home": r.home, "pred_away": r.pred_away,
                           "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"]})
