@@ -1584,6 +1584,13 @@ def update_pick_log(path, league, cands, games, now):
             return rec([e["result"] for e in xs], [e["units"] for e in xs], ppay(xs))
         live["last_week"] = {"season": k[0], "week": k[1], "picks": es,
                              "record": {"all": rw(), "spread": rw("spread"), "ml": rw("ml"), "total": rw("total")}}
+    arch = []
+    for k in sorted(fin_weeks, reverse=True):
+        es = sorted(byw_[k], key=lambda e: e["kickoff"])
+        ppay = lambda xs: [ml_pay(e["ml"]) if e["type"] == "ml" else WIN_UNITS for e in xs]
+        arch.append({"season": k[0], "week": k[1], "picks": es,
+                     "record": rec([e["result"] for e in es], [e["units"] for e in es], ppay(es))})
+    live["archive"] = arch
     official, byk = {}, defaultdict(list)
     for e in log:
         byk[wk(e)].append(e)
