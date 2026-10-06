@@ -83,13 +83,14 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 
     <section id="plays">
       <h2>This week's official plays</h2>
-      <p class="note">Each week the five plays where the model differs most from the Vegas line are the official plays: 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. They lock about three days before the week's first kickoff and don't change after that. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
+      <p class="note">Each week the five plays where the model differs most from the Vegas line are the official plays: 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. They lock about three days before the week's first kickoff and don't change after that. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
 
     <section id="games">
       <h2>All predictions</h2>
       <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks one of the week's five official plays; "Sim" is the model's side everywhere else (not a bet).</p>
+      <div id="lastwk"></div>
       <div id="days"></div>
     </section>
 
@@ -124,6 +125,8 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 const $ = id => document.getElementById(id), D = {}; let L = "nfl";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const tr = x => String(+x.toFixed(1)), pct = x => Math.round(x * 100) + "%", pct1 = x => (x * 100).toFixed(1) + "%";
+const mlTxt = o => o == null ? "" : (o > 0 ? "+" : "−") + Math.abs(Math.round(o));
+const spreadTxt = p => p.ml != null ? `${p.team} ML ${mlTxt(p.ml)}` : `${p.team} ${line(p.line)}`;
 const line = x => x === 0 ? "PK" : (x > 0 ? "+" : "−") + tr(Math.abs(x));
 const ml = n => n == null ? "n/a" : (n > 0 ? "+" : "−") + Math.abs(n);
 const units = u => (u >= 0 ? "+" : "−") + Math.abs(u).toFixed(1) + "u";
@@ -133,7 +136,7 @@ const shortDay = k => when(k).toLocaleDateString([], {month:"short", day:"numeri
 const timeOf = k => k.length > 10 ? when(k).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
 const favText = g => g.vegas_spread == null ? "n/a" : g.vegas_spread === 0 ? "PK" : g.vegas_spread > 0 ? `${g.home} −${tr(g.vegas_spread)}` : `${g.away} −${tr(-g.vegas_spread)}`;
 const recTxt = r => `${r.w}-${r.l}${r.p ? "-" + r.p : ""}`;
-const pickLabel = e => e.type === "spread" ? `${e.team} ${line(e.line)}` : `${e.side} ${tr(e.line)}`;
+const pickLabel = e => e.type === "ml" ? `${e.team} ML ${mlTxt(e.ml)}` : e.type === "spread" ? `${e.team} ${line(e.line)}` : `${e.side} ${tr(e.line)}`;
 
 async function load(l) { try { const r = await fetch(`data/${l}.json?t=${Date.now()}`); if (!r.ok) throw 0; D[l] = await r.json(); } catch (e) { D[l] = null; } }
 
@@ -185,16 +188,16 @@ function matchupPanel(g) {
     <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. EPA is expected points added per play (college uses the similar PPA). Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
 }
 function playCard(x) {
-  const g = x.g, p = x.p, spread = x.type === "spread";
-  return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} of ${p.of || 5} · ${p.units}u</span> ${spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
-    <div class="pick">${spread ? `${esc(p.team)} ${line(p.line)}` : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
+  const g = x.g, p = x.p, spread = x.type !== "total";
+  return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} of ${p.of || 5} · ${p.units}u</span> ${x.type === "ml" ? "Moneyline" : spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
+    <div class="pick">${spread ? esc(spreadTxt(p)) : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
     <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
     <span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
 }
 function gameRow(g, i) {
   let c = "";
-  if (g.spread_play) c += `<span class="star">★ Wk ${g.week} #${g.spread_play.rank} ${esc(g.spread_play.team)} ${line(g.spread_play.line)} · ${g.spread_play.units}u</span>`;
-  else if (g.sim_spread) c += `<span class="sim">Sim: ${esc(g.sim_spread.team)} ${line(g.sim_spread.line)}</span>`;
+  if (g.spread_play) c += `<span class="star">★ Wk ${g.week} #${g.spread_play.rank} ${esc(spreadTxt(g.spread_play))} · ${g.spread_play.units}u</span>`;
+  else if (g.sim_spread) c += `<span class="sim">Sim: ${esc(spreadTxt(g.sim_spread))}</span>`;
   if (g.total_play) c += `<span class="star">★ Wk ${g.week} #${g.total_play.rank} ${g.total_play.side} ${tr(g.total_play.line)} · ${g.total_play.units}u</span>`;
   else if (g.sim_total) c += `<span class="sim">Sim: ${g.sim_total.side} ${tr(g.sim_total.line)}</span>`;
   if (g.ml_value) { const h = g.ml_value === g.home, m = h ? g.home_win_prob : 1 - g.home_win_prob, i = h ? g.ml_implied_home : 1 - g.ml_implied_home;
@@ -205,12 +208,22 @@ function gameRow(g, i) {
 }
 function allPicks(lv, ytd) {
   if (!lv || !lv.record) return "";
+  const lw = lv.last_week;
   const cell = v => { if (!v) return "—"; const n = v.w + v.l; return n ? `${recTxt(v)} <small>${pct1(v.win_pct)} · ${units(v.units)}</small>` : "—"; };
-  const rows = [["All top 5 picks", "all"], ["Against the spread", "spread"], ["Over / under", "total"]], o = ytd && ytd.overall;
+  const hasMl = k => (lw && lw.record[k] && lw.record[k].w + lw.record[k].l + lw.record[k].p) || (ytd && ytd.overall && ytd.overall[k] && ytd.overall[k].w + ytd.overall[k].l + ytd.overall[k].p);
+  const rows = [["All top 5 picks", "all"], ["Against the spread", "spread"], ...(hasMl("ml") ? [["Moneyline (spread within 2)", "ml"]] : []), ["Over / under", "total"]], o = ytd && ytd.overall;
   return `<h3>Top 5 Picks</h3>
-    <div class="scroll"><table><thead><tr><th>Pick type</th><th>Live record</th>${o ? `<th>${ytd.season} season so far</th>` : ""}</tr></thead>
-    <tbody>${rows.map(([n, k]) => `<tr><td>${n}</td><td>${cell(lv.record[k])}</td>${o ? `<td>${cell(o[k])}</td>` : ""}</tr>`).join("")}</tbody></table></div>
-    <p class="note">The model's five highest-rated plays each week. The live record counts plays posted before kickoff${lv.since ? ` since ${shortDay(lv.since)}` : ""}. ${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
+    <div class="scroll"><table><thead><tr><th>Pick type</th><th>Last week${lw ? ` (Week ${lw.week})` : ""}</th>${o ? `<th>${ytd.season} season so far</th>` : ""}</tr></thead>
+    <tbody>${rows.map(([n, k]) => `<tr><td>${n}</td><td>${cell(lw && lw.record[k])}</td>${o ? `<td>${cell(o[k])}</td>` : ""}</tr>`).join("")}</tbody></table></div>
+    <p class="note">The model's five highest-rated plays each week. ${lw ? `Last week is the record of the official plays from Week ${lw.week}, posted before kickoff. ` : "Last week's record appears once a full week of games has finished. "}${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
+}
+const gSeason = g => { const t = new Date(g.kickoff); return t.getUTCMonth() >= 2 ? t.getUTCFullYear() : t.getUTCFullYear() - 1; };
+function lastWeekBlock(lw) {
+  if (!lw || !lw.picks || !lw.picks.length) return "";
+  const r = lw.record.all;
+  return `<h3>Last week's top plays (Week ${lw.week})</h3>
+    <p class="note">${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}. Final results for the official plays of the week that just ended.</p>
+    <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lw.picks.map(liveRow).join("")}</tbody></table></div>`;
 }
 function liveRow(e) {
   const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
@@ -218,7 +231,7 @@ function liveRow(e) {
     <td class="${cls}">${done ? `${e.result === 1 ? "Win" : e.result === -1 ? "Loss" : "Push"} ${units(e.net)}<small>Final ${e.away_pts}–${e.home_pts}</small>` : `Pending<small>${timeOf(e.kickoff) || shortDay(e.kickoff)}</small>`}</td></tr>`;
 }
 function btTable(b, seasons, total = "All seasons") {
-  const rows = []; const add = (name, o) => [["All picks", o.all], ["Spreads", o.spread], ["Totals", o.total]].forEach(([t, r], i) => rows.push([i ? "" : name, t, r]));
+  const rows = []; const add = (name, o) => [["All picks", o.all], ["Spreads", o.spread], ["Moneyline", o.ml && o.ml.w + o.ml.l + o.ml.p ? o.ml : null], ["Totals", o.total]].filter(x => x[1]).forEach(([t, r], i) => rows.push([i ? "" : name, t, r]));
   seasons.forEach(s => b.by_season[s] && add(s + " season", b.by_season[s])); add(total, b.overall);
   return `<table><thead><tr><th>Period</th><th>Bet type</th><th>Record</th><th>Win %</th><th>95% range</th><th>Units</th></tr></thead><tbody>${rows.map(([a, t, v]) => { const n = v.w + v.l;
     return `<tr><td>${a}</td><td>${t}</td><td>${recTxt(v)}</td><td>${n ? pct1(v.win_pct) : "—"}</td><td>${n ? pct1(v.lo) + " to " + pct1(v.hi) : "—"}</td><td class="${v.units >= 0 ? "pos" : "neg"}">${n ? units(v.units) : "—"}</td></tr>`; }).join("")}</tbody></table>`;
@@ -246,10 +259,13 @@ function render() {
   } else { $("lstats").innerHTML = $("lchart").innerHTML = $("ltable").innerHTML = $("lall").innerHTML = ""; $("lnote").textContent = "Betting lines aren't available for this league yet, so there are no official plays to track."; }
 
   const plays = [];
-  d.games.forEach(g => { if (g.spread_play) plays.push({type:"spread", g, p:g.spread_play}); if (g.total_play) plays.push({type:"total", g, p:g.total_play}); });
+  d.games.forEach(g => { if (g.spread_play) plays.push({type: g.spread_play.kind === "ml" ? "ml" : "spread", g, p:g.spread_play}); if (g.total_play) plays.push({type:"total", g, p:g.total_play}); });
+  const lwk = d.live && d.live.last_week;
+  if (lwk) for (let i = plays.length - 1; i >= 0; i--) if (gSeason(plays[i].g) === lwk.season && plays[i].g.week <= lwk.week) plays.splice(i, 1);
   plays.sort((a, b) => a.g.week - b.g.week || a.p.rank - b.p.rank || b.p.edge - a.p.edge);
   $("playlist").innerHTML = plays.length ? plays.map((x, i) => (i === 0 || plays[i - 1].g.week !== x.g.week ? `<h3>Week ${x.g.week}: top ${x.p.of || 5} plays</h3>` : "") + playCard(x)).join("") : `<div class="empty">${hasLines ? "No official plays are locked yet. This week's top five lock about three days before the first kickoff; until then every game shows the model's side in the table below." : "Vegas lines aren't available for this league yet."}</div>`;
 
+  $("lastwk").innerHTML = lastWeekBlock(d.live && d.live.last_week);
   let html = "", last = "", buf = "", n = 0;
   const flush = () => { if (buf) html += `<div class="scroll"><table><thead><tr><th>Matchup</th><th>Model score</th><th>Vegas line</th><th>Official play · model sides</th></tr></thead><tbody>${buf}</tbody></table></div>`; buf = ""; };
   d.games.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); html += `<h3>${esc(k)}</h3>`; last = k; } buf += gameRow(g, n++); });
@@ -262,7 +278,7 @@ function render() {
     $("btlead").textContent = `Each week, the model's five biggest gaps from the Vegas line are the official plays. This page shows what that rule would have done in past seasons. Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is not the live record, which only counts picks logged before kickoff.`;
     $("pasthead").textContent = `Past ${ss.length} seasons (${yrs})`;
     $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss);
-    $("btnote").textContent = `Five picks a week is about 85 a season, so even a few seasons is a small sample, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds (1 unit = 1% of a bankroll). Spreads and totals are graded at the line in the free data.`;
+    $("btnote").textContent = `Five picks a week is about 85 a season, so even a few seasons is a small sample, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds for spreads and totals (1 unit = 1% of a bankroll); moneyline plays, used when the spread is within 2 points, are paid at the posted moneyline. Spreads and totals are graded at the line in the free data.`;
   } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; ids.forEach(i => $(i).innerHTML = ""); $("btnote").textContent = ""; }
 }
 function route() {
