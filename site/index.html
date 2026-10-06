@@ -197,7 +197,7 @@ function playCard(x) {
   return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} of ${p.of || 5} · ${p.units}u</span> ${x.type === "ml" ? "Moneyline" : spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
     <div class="pick">${spread ? esc(spreadTxt(p)) : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
     <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
-    ${p.prob != null ? `<span>Simulator prediction: <b>${pct(p.prob)}</b>${histNote(x)}</span>` : ""}<span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
+    ${p.prob != null ? `<span>Simulator prediction: <b>${pct(p.prob)}</b></span>` : ""}<span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
 }
 function gameRow(g, i) {
   let c = "";
