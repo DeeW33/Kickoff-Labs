@@ -22,8 +22,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -38,13 +36,6 @@ jobs:
           restore-keys: data-
       - name: NFL predictions
         run: python football_predictor.py export --league nfl --out _site/data/nfl.json
-      - name: CFB predictions
-        if: env.CFBD_API_KEY != ''
-        run: python football_predictor.py export --league cfb --out _site/data/cfb.json
-        continue-on-error: true   # if college fails, the NFL site still deploys
-      - name: College skipped (no CFBD_API_KEY secret)
-        if: env.CFBD_API_KEY == ''
-        run: echo "::notice::CFBD_API_KEY secret not set, so the College tab was skipped"
       - name: Save pick log (public, timestamped by git history)
         continue-on-error: true
         run: |
