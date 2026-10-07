@@ -114,7 +114,6 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
     <section id="games">
       <h1>All predictions</h1>
       <p class="lead">Projected final scores for every game coming up, next to the market's lines. Official plays are outlined and marked ★; "Sim" sides are the model's lean in every other game, not bets.</p>
-      <div id="lastwk"></div>
       <div class="filters" id="gfilters"></div>
       <div id="days"></div>
     </section>
@@ -372,7 +371,6 @@ function render() {
   $("playlist").innerHTML = plays.length ? plays.map((x, i) => (i === 0 || plays[i - 1].g.week !== x.g.week ? `<h3>Week ${x.g.week}: top ${x.p.of || 5} plays</h3>` : "") + playCard(x)).join("") : `<div class="empty">${hasLines ? "No official plays are locked yet. This week's top five lock about three days before the first kickoff; until then every game shows the model's side in the table below." : "Vegas lines aren't available for this league yet."}</div>`;
 
   $("archlist").innerHTML = archiveBlock(d.live && d.live.archive);
-  $("lastwk").innerHTML = lastWeekBlock(d.live && d.live.last_week);
   GAMES = d.games; renderGames();
 
   const b = d.backtest_record, ss = (d.backtest_seasons || []).map(String);
