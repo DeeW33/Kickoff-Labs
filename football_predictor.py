@@ -1574,6 +1574,32 @@ def update_pick_log(path, league, cands, games, now):
                                "pred_away": u["pred_away"], "pred_home": u["pred_home"], "status": "pending",
                                "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}))
 
+    # 2a) a pending play keeps its side but its LINE follows the market until kickoff, then freezes
+    cur = {u["game_id"]: u for u in cands}
+    ov_ids = set()
+    _ovp = os.path.join(os.path.dirname(path) or ".", "line_overrides.json")
+    if os.path.exists(_ovp):
+        ov_ids = {o["id"] for o in json.load(open(_ovp))}
+    for e in log:
+        u = cur.get(e["game_id"])
+        if e["status"] != "pending" or u is None or e["id"] in ov_ids or not _before_kickoff(e["kickoff"], now):
+            continue
+        new = None
+        if e["type"] == "spread" and pd.notna(u.get("mkt_spread")):
+            new = float(-u["mkt_spread"] if e["team"] == e["home"] else u["mkt_spread"])
+        elif e["type"] == "total" and pd.notna(u.get("mkt_total")):
+            new = float(u["mkt_total"])
+        elif e["type"] == "ml":
+            o_ = u.get("mkt_ml_home") if e["team"] == e["home"] else u.get("mkt_ml_away")
+            if pd.notna(o_) and float(o_) != e.get("ml"):
+                e.setdefault("ml_first", e.get("ml"))
+                e["ml"] = float(o_)
+                e["line_updated_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if new is not None and new != e["line"]:
+            e.setdefault("line_first", e["line"])
+            e["line"], e["line_updated_at"] = new, now.strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"  line follows market: {e['id']} {e['line_first']} -> {new}", file=sys.stderr)
+
     # 2b) manual line corrections from data/line_overrides.json: [{"id", "line", "side"?, "note"?}].
     #     The original line is kept on the entry (line_orig) and the site marks the pick as edited.
     ov_path = os.path.join(os.path.dirname(path) or ".", "line_overrides.json")
@@ -2001,7 +2027,9 @@ def cmd_export(args):
             pk = make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total, r.mkt_ml_home, r.mkt_ml_away)
             cands.append({"game_id": _gid(r.game_id), "season": int(r.season), "week": int(r.week),
                           "kickoff": _kickoff(r), "away": r.away, "home": r.home, "pred_away": r.pred_away,
-                          "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"]})
+                          "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"],
+                          "mkt_spread": r.mkt_spread, "mkt_total": r.mkt_total,
+                          "mkt_ml_home": r.mkt_ml_home, "mkt_ml_away": r.mkt_ml_away})
     live, official = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, cands, games, now)
     all_live = update_all_log(f"data/allpicks_{lg.name}.json", lg.name, upcoming, games, now)
     live["all"] = all_live
