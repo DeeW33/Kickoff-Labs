@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kickoff Labs: Sharp Betting Plays</title>
 <meta name="description" content="Sharp Betting Plays: the model's top five NFL plays each week, graded in public with a live record and a backtest.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b1220;--panel:#121c31;--panel2:#18243f;--ink:#e8eefc;--mute:#8d9bb8;--line:#233252;--go:#3ddc97;--go2:#12352b;--amber:#f5b942;--bad:#ff7a6b}
-@media (prefers-color-scheme:light){:root{--bg:#f2f5fb;--panel:#fff;--panel2:#eef2fa;--ink:#101a30;--mute:#5b6985;--line:#d8e0ee;--go:#0d8a5b;--go2:#dff5ec;--amber:#b87800;--bad:#c4351f}}
+:root{--bg:#f1f2f4;--panel:#fff;--panel2:#eceff3;--ink:#14213d;--mute:#5d6878;--line:#d5d9e0;--go:#1f3a68;--go2:#e3e9f3;--amber:#b4701a;--bad:#b3321f;--win:#0d7a53;--navy:#14213d;--band:#e6ecf2;--accent:#2f56a6}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1424;--panel:#141d31;--panel2:#1a2540;--ink:#e8edf8;--mute:#93a0ba;--line:#26345a;--go:#8fb2f0;--go2:#1b2c52;--amber:#f0b247;--bad:#ff8272;--win:#4fd9a0;--navy:#8fb2f0;--band:#1a2540;--accent:#8fb2f0}}
 *{box-sizing:border-box}[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit}.wrap{max-width:1000px;margin:0 auto;padding:0 1rem}
@@ -79,6 +81,59 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 .kedge{margin:0 0 .9rem}.kedge h5{margin:0 0 .5rem;font:700 .78rem ui-monospace,Menlo,monospace;letter-spacing:.14em;color:var(--mute)}
 .kedge p{display:flex;gap:.65rem;align-items:flex-start;margin:.35rem 0;font-size:.92rem;line-height:1.35}
 .kedge i{flex:none;width:.7rem;height:.7rem;border-radius:50%;margin-top:.38rem}
+
+body{font:16px/1.5 "Barlow",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mono,.eyebrow,.dayh,.gc .top,.lines h4,.lines b,.pickrow,.team .rec,.team .sc,.gstats,.tabrow button small,.brand,.sides .lb{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.brand{font:700 1.05rem/1 "JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.08em}.brand i{color:var(--accent)}
+header.bar{background:var(--panel)}.nav{padding:1rem 1rem}
+nav a{margin-left:1.8rem;font-size:1rem;font-weight:500;padding:.9rem 0;border-bottom:2px solid transparent;margin-bottom:-1rem;margin-top:-1rem}
+nav a:hover{color:var(--ink)}nav a.on{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.wrap{max-width:1180px}
+h1{font:600 clamp(2.4rem,6.5vw,4.2rem)/.98 "Barlow",sans-serif;letter-spacing:-.035em;margin:.4rem 0 .6rem}
+h2{font:600 1.7rem/1.1 "Barlow",sans-serif;letter-spacing:-.02em}
+h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase}
+.stat,.play,.scroll,.callout,.chartbox,.empty,.search input,.seg{border-radius:2px}.stat,.play{border-top:3px solid var(--navy)}
+.stat b,.play .pick{font-family:"Barlow",sans-serif;letter-spacing:-.02em}
+.top{margin-top:1.4rem}.tabs{gap:0;border-bottom:1px solid var(--line);width:100%}.top{align-items:flex-end}
+.tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:.6rem 1.1rem;font-weight:500;color:var(--mute);margin-bottom:-1px}
+.tab[aria-selected=true]{background:none;border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
+.stamp{font:400 .72rem "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;width:100%}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:2rem;align-items:end;margin:1.2rem 0 1.4rem}
+@media (max-width:820px){.hero{grid-template-columns:1fr;gap:.4rem}}
+.eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem}
+.hero .lead{margin:0 0 .4rem;font-size:1.02rem;max-width:none}
+.tabrow{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);margin:1.2rem 0 0}
+.dtabs{display:flex;flex-wrap:wrap}.dtabs button{font:inherit;font-weight:500;color:var(--mute);background:none;border:0;border-bottom:3px solid transparent;padding:.7rem 1.1rem;cursor:pointer;margin-bottom:-1px}
+.dtabs button small{font-size:.75rem;margin-left:.4rem;opacity:.8}.dtabs button[aria-pressed=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.tools{display:flex;gap:.6rem;align-items:center;padding-bottom:.5rem;flex-wrap:wrap}
+.tools .search input{padding:.45rem .8rem;min-width:11rem;font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.tools .tg{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:.45rem .8rem;border-radius:2px;cursor:pointer}
+.tools .tg[aria-pressed=true]{background:var(--navy);color:var(--panel);border-color:var(--navy)}
+.dayh{display:flex;justify-content:space-between;align-items:baseline;margin:2rem 0 .9rem;padding:0;border:0;font-size:.95rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.dayh small{font:400 .72rem "JetBrains Mono",monospace;letter-spacing:.1em;color:var(--mute);text-transform:uppercase}
+.ggrid{gap:1rem}
+.gc{padding:0;border:1px solid var(--line);border-top:4px solid var(--navy);border-radius:2px;background:var(--panel);box-shadow:0 1px 0 rgba(20,33,61,.04)}
+.gc.off{border-top-color:var(--amber)}
+.gc .top{padding:.8rem 1.1rem;border-bottom:1px solid var(--line);font-size:.78rem;letter-spacing:.04em;margin:0;align-items:center}
+.gc .top .ven{font-family:"Barlow",sans-serif;font-size:.9rem;letter-spacing:0;text-align:right}
+.teams{padding:.4rem 1.1rem}
+.team{display:flex;align-items:center;gap:.9rem;margin:0;padding:.8rem 0}.team+.team{border-top:1px solid var(--line)}
+.team .tile{flex:none;width:2.9rem;height:2.9rem;border-radius:2px;display:grid;place-items:center;font:700 .85rem "Barlow",sans-serif;letter-spacing:.02em;border-bottom:3px solid rgba(0,0,0,.28)}
+.team .nm{flex:1;font:500 1.4rem/1.1 "Barlow",sans-serif;letter-spacing:-.015em;min-width:0}.team .nm small{display:block;font-size:.78rem;color:var(--mute);margin-top:.25rem;letter-spacing:.04em}
+.team .sc{font:500 2.5rem/1 "JetBrains Mono",monospace;letter-spacing:-.04em;color:var(--navy)}.team.lose .sc{color:var(--mute)}
+.gstats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.gstats div{padding:.8rem .9rem;border-left:1px solid var(--line)}.gstats div:first-child{border-left:0}
+.gstats h4{margin:0 0 .35rem;font:500 .66rem "JetBrains Mono",monospace;letter-spacing:.1em;color:var(--mute);text-transform:uppercase}.gstats b{font-size:1rem;font-weight:700}
+@media (max-width:520px){.gstats{grid-template-columns:repeat(2,1fr)}.gstats div:nth-child(3){border-left:0}.gstats div:nth-child(n+3){border-top:1px solid var(--line)}}
+.pickband{background:var(--band);padding:.8rem 1.1rem}.pickband h4{margin:0 0 .35rem;font:700 .68rem "JetBrains Mono",monospace;letter-spacing:.14em;color:var(--navy);text-transform:uppercase}
+.pickrow{display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;font-size:1.05rem;font-weight:700;color:var(--navy);padding:.1rem 0}
+.pickrow.sub{font-size:.9rem;font-weight:500}.pickrow .tag{font-size:.7rem;color:var(--amber);letter-spacing:.08em;font-weight:700;align-self:center}
+.gfoot{display:flex;justify-content:space-between;gap:1rem;padding:.8rem 1.1rem;font-size:.95rem;color:var(--mute);border-top:1px solid var(--line)}.gfoot b{color:var(--ink);font-weight:600}
+.gwx{padding:0 1.1rem .75rem;font:400 .74rem "JetBrains Mono",monospace;letter-spacing:.04em;color:var(--mute)}
+.gc .more{margin:0;border-top:1px solid var(--line);padding:.7rem 1.1rem}.gc .more summary{font:600 .72rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.win{color:var(--win)}.pos{color:var(--win)}
+@media (max-width:760px){.nav{padding:.7rem 1rem .4rem}nav{display:flex;width:100%;overflow-x:auto;white-space:nowrap;gap:1.2rem}nav a{margin:0;padding:.5rem 0;font-size:.95rem}
+ .tabrow{gap:.2rem}.dtabs button{padding:.6rem .8rem}.tools{width:100%}.tools .search{flex:1}.tools .search input{width:100%}}
 </style>
 </head>
 <body>
@@ -109,16 +164,16 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
     </section>
 
     <section id="plays">
-      <h2>This week's official plays</h2>
+      <div class="hero"><div><div class="eyebrow">OFFICIAL PLAYS</div><h1>This week's plays</h1></div><p class="lead">The model's five biggest gaps from the Vegas line, locked before kickoff and graded in public.</p></div>
       <div class="stats" id="pstats"></div>
       <p class="note">Each week the five plays where the model differs most from the Vegas line are the official plays: 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. They lock about three days before the week's first kickoff and don't change after that. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
 
     <section id="games">
-      <h1>All predictions</h1>
-      <p class="lead">Projected final scores for every game coming up, next to the market's lines. Official plays are outlined and marked ★; "Sim" sides are the model's lean in every other game, not bets.</p>
-      <div class="filters" id="gfilters"></div>
+      <div class="hero"><div><div class="eyebrow" id="geye">NFL / MODEL PROJECTIONS</div><h1 id="gtitle">Games</h1></div>
+        <p class="lead">Every score shown is a model projection, next to the market's line. Lines show the favored team and kickoffs are in your local time. Official plays have an amber outline; the model's lean in every other game is not a bet.</p></div>
+      <div class="tabrow"><div class="dtabs" id="gtabs"></div><div class="tools" id="gtools"></div></div>
       <div id="days"></div>
     </section>
 
@@ -324,42 +379,47 @@ function weekTable(ws) {
 
 
 let GF = {q: "", mode: "all", day: ""}, GAMES = [];
-const simLine = g => { const m = g.pred_margin, a = Math.abs(m); if (a < 0.25) return "PK"; const v = Math.round(a * 2) / 2; return `${m > 0 ? g.home : g.away} −${tr(v)}`; };
-function gameCard(g, i) {
-  const off = g.spread_play || g.total_play, hw = g.pred_home >= g.pred_away;
-  const team = (ab, sc, win) => `<div class="team ${win ? "" : "lose"}"><span class="ab">${esc(ab)}</span><span class="nm">${esc(ab)}</span><span class="sc">${Math.round(sc)}</span></div>`;
-  const chips = [`<span><b>${esc(hw ? g.home : g.away)}</b> to win</span>`];
-  if (g.spread_play) chips.push(`<span class="of">★ #${g.spread_play.rank} ${esc(spreadTxt(g.spread_play))}</span>`);
-  else if (g.sim_spread) chips.push(`<span>${esc(spreadTxt(g.sim_spread))}</span>`);
-  if (g.total_play) chips.push(`<span class="of">★ #${g.total_play.rank} ${g.total_play.side} ${tr(g.total_play.line)}</span>`);
-  else if (g.sim_total) chips.push(`<span>${g.sim_total.side} ${tr(g.sim_total.line)}</span>`);
-  if (g.ml_value) chips.push(`<span>ML value: <b>${esc(g.ml_value)}</b></span>`);
-  const vg = g.vegas_spread == null ? `<b>No line yet</b>` : `<b>${esc(favText(g))}</b><small>O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</small>`;
-  return `<article class="gc ${off ? "off" : ""}"><div class="top"><span>${dayOf(g.kickoff).split(",")[0].slice(0, 3)} ${timeOf(g.kickoff)}${g.neutral ? " · neutral site" : ""}</span><b>PROJECTED</b></div>
-    ${team(g.away, g.pred_away, !hw)}${team(g.home, g.pred_home, hw)}
-    <div class="lines"><div><h4>VEGAS LINE</h4>${vg}</div><div><h4>SIM LINE</h4><b>${esc(simLine(g))}</b><small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></div></div>
-    <div class="sides"><span class="lb">SIM SIDES</span>${chips.join("")}${wx(g)}</div>
+const NFLT = {ARI:["Arizona Cardinals","#97233f","State Farm Stadium"],ATL:["Atlanta Falcons","#a71930","Mercedes-Benz Stadium"],BAL:["Baltimore Ravens","#241773","M&T Bank Stadium"],BUF:["Buffalo Bills","#00338d","Highmark Stadium"],CAR:["Carolina Panthers","#0085ca","Bank of America Stadium"],CHI:["Chicago Bears","#0b162a","Soldier Field"],CIN:["Cincinnati Bengals","#fb4f14","Paycor Stadium"],CLE:["Cleveland Browns","#e8481c","Huntington Bank Field"],DAL:["Dallas Cowboys","#041e42","AT&T Stadium"],DEN:["Denver Broncos","#fb4f14","Empower Field at Mile High"],DET:["Detroit Lions","#0076b6","Ford Field"],GB:["Green Bay Packers","#203731","Lambeau Field"],HOU:["Houston Texans","#03202f","NRG Stadium"],IND:["Indianapolis Colts","#002c5f","Lucas Oil Stadium"],JAX:["Jacksonville Jaguars","#006778","EverBank Stadium"],JAC:["Jacksonville Jaguars","#006778","EverBank Stadium"],KC:["Kansas City Chiefs","#e31837","GEHA Field at Arrowhead Stadium"],LA:["Los Angeles Rams","#003594","SoFi Stadium"],LAC:["Los Angeles Chargers","#0080c6","SoFi Stadium"],LV:["Las Vegas Raiders","#111111","Allegiant Stadium"],MIA:["Miami Dolphins","#008e97","Hard Rock Stadium"],MIN:["Minnesota Vikings","#4f2683","U.S. Bank Stadium"],NE:["New England Patriots","#002244","Gillette Stadium"],NO:["New Orleans Saints","#d3bc8d","Caesars Superdome","#1a1a1a"],NYG:["New York Giants","#0b2265","MetLife Stadium"],NYJ:["New York Jets","#125740","MetLife Stadium"],PHI:["Philadelphia Eagles","#004c54","Lincoln Financial Field"],PIT:["Pittsburgh Steelers","#101820","Acrisure Stadium","#ffb612"],SEA:["Seattle Seahawks","#002244","Lumen Field"],SF:["San Francisco 49ers","#aa0000","Levi's Stadium"],TB:["Tampa Bay Buccaneers","#d50a0a","Raymond James Stadium"],TEN:["Tennessee Titans","#4b92db","Nissan Stadium"],WAS:["Washington Commanders","#5a1414","Northwest Stadium"],WSH:["Washington Commanders","#5a1414","Northwest Stadium"]};
+const tInfo = ab => { const t = L === "nfl" ? NFLT[ab] : null; return {name: t ? t[0] : ab, color: t ? t[1] : "#1f3a68", venue: t ? t[2] : "", fg: t && t[3] ? t[3] : "#fff", abbr: L === "nfl" || ab.length <= 4 ? ab : ab.split(/\s+/).map(w => w[0]).join("").slice(0, 3).toUpperCase()}; };
+const f1 = x => Math.abs(x).toFixed(1), sgn = x => (x > 0 ? "+" : "−") + Math.abs(x).toFixed(1);
+const lineTxt = (ab, m) => Math.abs(m) < 0.05 ? "PK" : `${ab} −${f1(m)}`;
+const sideTxt = p => p.ml != null ? `${tInfo(p.team).name} ML ${mlTxt(p.ml)}` : `${tInfo(p.team).name} ${p.line === 0 ? "PK" : sgn(p.line)}`;
+function gameCard(g) {
+  const off = g.spread_play || g.total_play, hw = g.pred_home >= g.pred_away, A = tInfo(g.away), H = tInfo(g.home);
+  const rec = c => c && c.record ? `${esc(c.record)}` : "";
+  const team = (T, c, sc, win) => `<div class="team ${win ? "" : "lose"}"><span class="tile" style="background:${T.color};color:${T.fg}">${esc(T.abbr)}</span><span class="nm">${esc(T.name)}${rec(c) ? `<small>${rec(c)}</small>` : ""}</span><span class="sc">${sc.toFixed(1)}</span></div>`;
+  const mk = g.vegas_spread == null ? "—" : g.vegas_spread === 0 ? "PK" : g.vegas_spread > 0 ? `${g.home} −${f1(g.vegas_spread)}` : `${g.away} −${f1(g.vegas_spread)}`;
+  let pick = "", sp = g.spread_play || g.sim_spread, tt = g.total_play || g.sim_total;
+  if (sp) pick += `<div class="pickrow"><span>${esc(sideTxt(sp))}</span>${g.spread_play ? `<span class="tag">★ OFFICIAL #${sp.rank} · ${sp.units}u</span>` : ""}</div>`;
+  if (tt) pick += `<div class="pickrow ${sp ? "sub" : ""}"><span>${tt.side} ${f1(tt.line)}</span>${g.total_play ? `<span class="tag">★ OFFICIAL #${tt.rank} · ${tt.units}u</span>` : ""}</div>`;
+  if (g.ml_value) pick += `<div class="pickrow sub"><span>ML value: ${esc(tInfo(g.ml_value).name)}</span></div>`;
+  const venue = g.neutral ? "Neutral site" : H.venue, w = g.weather;
+  const wxs = w ? (w.dome ? "Indoors" : `${Math.round(w.temp)}°F · ${Math.round(w.wind)} mph wind${w.known && w.gust != null && w.gust >= 15 && w.gust >= w.wind + 5 ? ` · gusts ${Math.round(w.gust)}` : ""}${w.known && w.pop != null && w.pop >= 30 ? ` · ${Math.round(w.pop)}% rain/snow` : ""}${w.known ? "" : " (typical)"}`) : "";
+  const tm = new Date(g.kickoff.length > 10 ? g.kickoff : g.kickoff + "T12:00:00").toLocaleTimeString([], {hour: "numeric", minute: "2-digit", timeZoneName: g.kickoff.length > 10 ? "short" : undefined});
+  return `<article class="gc ${off ? "off" : ""}"><div class="top"><span>${g.kickoff.length > 10 ? esc(tm.toUpperCase()) : "TIME TBD"}</span><span class="ven">${esc(venue)}</span></div>
+    <div class="teams">${team(A, g.away_info, g.pred_away, !hw)}${team(H, g.home_info, g.pred_home, hw)}</div>
+    <div class="gstats"><div><h4>Market line</h4><b>${esc(mk)}</b></div><div><h4>Model line</h4><b>${esc(lineTxt(g.pred_margin > 0 ? g.home : g.away, g.pred_margin))}</b></div><div><h4>Market total</h4><b>${g.vegas_total != null ? f1(g.vegas_total) : "—"}</b></div><div><h4>Model total</h4><b>${g.pred_total.toFixed(1)}</b></div></div>
+    ${pick ? `<div class="pickband"><h4>Model pick</h4>${pick}</div>` : ""}
+    <div class="gfoot"><span>Projected winner</span><b>${esc((hw ? H : A).name)}</b></div>${wxs ? `<div class="gwx">${esc(wxs)}</div>` : ""}
     ${g.home_info ? `<details class="more"><summary>Game breakdown</summary>${matchupPanel(g)}</details>` : ""}</article>`;
 }
 function renderGames() {
   const q = GF.q.trim().toLowerCase(), all = GAMES, days = [...new Set(all.map(g => dayOf(g.kickoff)))];
   const nOff = all.filter(g => g.spread_play || g.total_play).length;
-  const seg = (items, cur, key) => `<div class="seg">${items.map(([v, l]) => `<button data-k="${key}" data-v="${esc(v)}" aria-pressed="${cur === v}">${l}</button>`).join("")}</div>`;
-  const list = all.filter(g => (GF.mode === "all" || g.spread_play || g.total_play) && (!GF.day || dayOf(g.kickoff) === GF.day) &&
-    (!q || (g.home + " " + g.away).toLowerCase().includes(q)));
-  $("gfilters").innerHTML = `<div class="search"><input id="gq" type="search" placeholder="Find a team" value="${esc(GF.q)}" aria-label="Find a team"></div>` +
-    seg([["all", "All games"], ["official", `Official plays (${nOff})`]], GF.mode, "mode") +
-    (days.length > 1 ? seg([["", "Every day"], ...days.map(d => [d, d.split(",")[0].slice(0, 3)])], GF.day, "day") : "") +
-    `<span class="gcount">${list.length} of ${all.length} games</span>`;
+  const wk = all.length ? all[0].week : null, lg = (D[L] && D[L].league || L).toUpperCase();
+  $("geye").textContent = `${lg} / MODEL PROJECTIONS`; $("gtitle").innerHTML = wk != null ? `Week <span style="color:var(--accent)">${wk}</span> Games` : "Games";
+  const list = all.filter(g => (GF.mode === "all" || g.spread_play || g.total_play) && (!GF.day || dayOf(g.kickoff) === GF.day) && (!q || (tInfo(g.home).name + " " + tInfo(g.away).name + " " + g.home + " " + g.away).toLowerCase().includes(q)));
+  const cnt = d => all.filter(g => dayOf(g.kickoff) === d).length;
+  $("gtabs").innerHTML = days.length > 1 || all.length ? `<button data-k="day" data-v="" aria-pressed="${GF.day === ""}">All games <small>${all.length}</small></button>` + days.map(d => `<button data-k="day" data-v="${esc(d)}" aria-pressed="${GF.day === d}">${esc(d.split(",")[0])} <small>${cnt(d)}</small></button>`).join("") : "";
+  $("gtools").innerHTML = `<button class="tg" data-k="mode" data-v="${GF.mode === "all" ? "official" : "all"}" aria-pressed="${GF.mode === "official"}">Official plays (${nOff})</button><div class="search"><input id="gq" type="search" placeholder="Find a team" value="${esc(GF.q)}" aria-label="Find a team"></div>`;
   let html = "", last = "", buf = "";
   const flush = () => { if (buf) html += `<div class="ggrid">${buf}</div>`; buf = ""; };
-  list.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); const n = list.filter(x => dayOf(x.kickoff) === k).length; html += `<div class="dayh">${esc(k)} <small>${n} game${n === 1 ? "" : "s"}</small></div>`; last = k; } buf += gameCard(g); });
+  list.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); const n = list.filter(x => dayOf(x.kickoff) === k).length; html += `<div class="dayh"><span>${esc(k)}</span><small>${n} game${n === 1 ? "" : "s"}</small></div>`; last = k; } buf += gameCard(g); });
   flush();
   $("days").innerHTML = html || `<div class="empty">${all.length ? "No games match those filters." : "No games in the next few days. Check back closer to kickoff."}</div>`;
-  const qi = $("gq"); if (document.activeElement && document.activeElement.id === "gq") { /* keep focus */ }
 }
-$("gfilters").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (!b) return; GF[b.dataset.k] = b.dataset.v; renderGames(); });
-$("gfilters").addEventListener("input", e => { if (e.target.id !== "gq") return; GF.q = e.target.value; const pos = e.target.selectionStart; renderGames(); const n = $("gq"); n.focus(); n.setSelectionRange(pos, pos); });
+document.querySelector(".tabrow").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (!b) return; GF[b.dataset.k] = b.dataset.v; renderGames(); });
+document.querySelector(".tabrow").addEventListener("input", e => { if (e.target.id !== "gq") return; GF.q = e.target.value; const pos = e.target.selectionStart; renderGames(); const n = $("gq"); n.focus(); n.setSelectionRange(pos, pos); });
 
 function render() {
   const d = D[L];
