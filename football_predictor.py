@@ -126,6 +126,8 @@ ADJ_COLS = ([f"{sd}_adj{k}_{s}" for sd in ("home", "away") for k in ("off", "def
             + ["home_adj_pf", "home_adj_pa", "away_adj_pf", "away_adj_pa", "exp_adj_margin", "exp_adj_total"])
 TOV_COLS = ["home_tov_comm", "home_tov_forced", "away_tov_comm", "away_tov_forced", "tov_edge"]
 INJW_COLS = [f"{sd}_injw_{g}" for sd in ("home", "away") for g in INJ_GROUPS] + ["injw_total_diff"]
+TRAVEL_COLS = ["away_travel_1k", "tz_shift", "away_tz_west", "home_short", "away_short", "home_off_bye", "away_off_bye",
+               "away_short_travel"]
 NEW_GROUPS = ("adjusted", "turnovers", "injw")   # groups added in v3
 MARKET_COLS = ["mkt_spread", "mkt_total"]
 
@@ -1048,6 +1050,29 @@ def injw_features(games: pd.DataFrame, inj: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def travel_features(games: pd.DataFrame):
+    """NFL only: how far the away team travelled, the time-zone shift, and short-week / post-bye flags."""
+    def ll(t):
+        return NFL_STADIUMS.get(t, (np.nan, np.nan))
+    h = np.array([ll(t) for t in games["home"]], dtype=float)
+    a = np.array([ll(t) for t in games["away"]], dtype=float)
+    la1, lo1, la2, lo2 = (np.radians(x) for x in (h[:, 0], h[:, 1], a[:, 0], a[:, 1]))
+    km = 6371 * 2 * np.arcsin(np.sqrt(np.sin((la2 - la1) / 2) ** 2 + np.cos(la1) * np.cos(la2) * np.sin((lo2 - lo1) / 2) ** 2))
+    neutral = games["neutral"].fillna(False).astype(bool).to_numpy() if "neutral" in games else np.zeros(len(games), bool)
+    km = np.where(neutral | np.isnan(km), 0.0, km)
+    tz = np.where(neutral | np.isnan(lo1), 0.0, (lo1 - lo2) * 180 / np.pi / 15)   # + = away team is coming from the west
+    hr = pd.to_numeric(games.get("home_rest"), errors="coerce") if "home_rest" in games else None
+    return pd.DataFrame({"away_travel_1k": km / 1000.0, "tz_shift": tz, "away_tz_west": (tz > 1.5).astype(float)}, index=games.index)
+
+
+def rest_flags(feats: pd.DataFrame):
+    hr, ar = feats["home_rest"], feats["away_rest"]
+    out = pd.DataFrame(index=feats.index)
+    out["home_short"], out["away_short"] = (hr <= 5).astype(float), (ar <= 5).astype(float)
+    out["home_off_bye"], out["away_off_bye"] = (hr >= 13).astype(float), (ar >= 13).astype(float)
+    return out
+
+
 def weather_features(games: pd.DataFrame):
     roof = games["roof"].astype("object")
     indoor = roof.isin(["dome", "closed"])
@@ -1174,6 +1199,11 @@ def featurize(lg, games, ctx, talent_elo=True):
     if ctx.injw_counts is not None:
         feats = feats.join(injw_features(games, ctx.injw_counts))
         gc["injw"] = INJW_COLS
+    if lg.name == "nfl":
+        tr_ = travel_features(games).join(rest_flags(feats))
+        tr_["away_short_travel"] = tr_["away_short"] * tr_["away_travel_1k"]
+        feats = feats.join(tr_[TRAVEL_COLS])
+        gc["travel"] = TRAVEL_COLS
     wx = weather_features(games)
     if wx is not None:
         feats = feats.join(wx)
@@ -1991,7 +2021,7 @@ def main():
     ap.add_argument("--drop", default="", help="comma list: advanced,qb,injuries,weather,roster")
     ap.add_argument("--log", help="(export) pick log path, default data/picks_<league>.json")
     ap.add_argument("--out", help="(export) output JSON path, default data/<league>.json")
-    ap.add_argument("--with", dest="with_groups", default="", help="opt-in feature groups: adjusted,turnovers,injw")
+    ap.add_argument("--with", dest="with_groups", default="", help="opt-in feature groups: adjusted,turnovers,injw,travel")
     ap.add_argument("--use-market", action="store_true", help="(NFL) add Vegas spread/total as features")
     args = ap.parse_args()
     args.drop_set = {x.strip() for x in args.drop.split(",") if x.strip()}
