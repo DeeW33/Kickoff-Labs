@@ -53,6 +53,28 @@ tr.det>td{background:var(--bg);padding:.8rem .75rem}.more{margin-top:.6rem}.more
 .back{color:var(--mute);text-decoration:none;font-size:.9rem;display:inline-block;margin-top:1rem}
 footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);color:var(--mute);font-size:.85rem}
 @media (max-width:560px){.stats{grid-template-columns:1fr}.stat b{font-size:1.5rem}h1{font-size:1.7rem}nav a{margin-left:.7rem}}
+
+.filters{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0 1.3rem;align-items:center}
+.search input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.55rem .9rem;min-width:13rem}
+.seg{display:flex;flex-wrap:wrap;gap:.2rem;border:1px solid var(--line);border-radius:12px;padding:.2rem;background:var(--panel)}
+.seg button{font:inherit;border:0;background:none;color:var(--mute);padding:.35rem .8rem;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--panel2);color:var(--ink);font-weight:600}
+.gcount{color:var(--mute);font-size:.85rem}
+.dayh{display:flex;align-items:baseline;gap:.7rem;margin:1.8rem 0 .8rem;padding-top:1rem;border-top:1px solid var(--line);font:700 1.15rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em}
+.dayh small{font:500 .85rem system-ui,sans-serif;color:var(--mute);text-transform:none;letter-spacing:0}
+.ggrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}
+@media (max-width:760px){.ggrid{grid-template-columns:1fr}}
+.gc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem}
+.gc.off{border-color:var(--amber)}
+.gc .top{display:flex;justify-content:space-between;gap:.5rem;color:var(--mute);font-size:.82rem}.gc .top b{letter-spacing:.1em;font-size:.72rem}
+.team{display:flex;align-items:center;gap:.7rem;margin-top:.6rem}
+.team .ab{width:2.3rem;height:2.3rem;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-size:.66rem;font-weight:700}
+.team .nm{flex:1;font-weight:600;font-size:1.05rem}.team .sc{font:700 2.1rem/1 Georgia,serif;font-variant-numeric:tabular-nums}.team.lose .sc{color:var(--mute)}
+.lines{display:grid;grid-template-columns:1fr 1fr;gap:1rem;border-top:1px solid var(--line);margin-top:.9rem;padding-top:.8rem}
+.lines h4{margin:0;font-size:.7rem;letter-spacing:.1em;color:var(--mute);font-weight:600}.lines b{display:block;font-size:1.05rem;margin-top:.2rem}.lines small{color:var(--mute);font-size:.82rem}
+.sides{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .9rem;border-top:1px solid var(--line);margin-top:.8rem;padding-top:.7rem;font-size:.86rem}
+.sides .lb{color:var(--mute);font-size:.7rem;letter-spacing:.1em}.sides .of{color:var(--amber);font-weight:700}
+.gc .more{margin-top:.7rem}
 </style>
 </head>
 <body>
@@ -90,9 +112,10 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
     </section>
 
     <section id="games">
-      <h2>All predictions</h2>
-      <p class="note">Model scores next to the Vegas spread, total and moneyline. ★ marks one of the week's five official plays; "Sim" is the model's side everywhere else (not a bet).</p>
+      <h1>All predictions</h1>
+      <p class="lead">Projected final scores for every game coming up, next to the market's lines. Official plays are outlined and marked ★; "Sim" sides are the model's lean in every other game, not bets.</p>
       <div id="lastwk"></div>
+      <div class="filters" id="gfilters"></div>
       <div id="days"></div>
     </section>
 
@@ -281,6 +304,45 @@ function weekTable(ws) {
     return `<tr><td>Week ${v.week}</td><td>${recTxt(v)}</td><td>${n ? pct1(v.win_pct) : "—"}</td><td class="${v.units >= 0 ? "pos" : "neg"}">${n ? units(v.units) : "—"}</td></tr>`; }).join("")}</tbody></table>`;
 }
 
+
+let GF = {q: "", mode: "all", day: ""}, GAMES = [];
+const simLine = g => { const m = g.pred_margin, a = Math.abs(m); if (a < 0.25) return "PK"; const v = Math.round(a * 2) / 2; return `${m > 0 ? g.home : g.away} −${tr(v)}`; };
+function gameCard(g, i) {
+  const off = g.spread_play || g.total_play, hw = g.pred_home >= g.pred_away;
+  const team = (ab, sc, win) => `<div class="team ${win ? "" : "lose"}"><span class="ab">${esc(ab)}</span><span class="nm">${esc(ab)}</span><span class="sc">${Math.round(sc)}</span></div>`;
+  const chips = [`<span><b>${esc(hw ? g.home : g.away)}</b> to win</span>`];
+  if (g.spread_play) chips.push(`<span class="of">★ #${g.spread_play.rank} ${esc(spreadTxt(g.spread_play))}</span>`);
+  else if (g.sim_spread) chips.push(`<span>${esc(spreadTxt(g.sim_spread))}</span>`);
+  if (g.total_play) chips.push(`<span class="of">★ #${g.total_play.rank} ${g.total_play.side} ${tr(g.total_play.line)}</span>`);
+  else if (g.sim_total) chips.push(`<span>${g.sim_total.side} ${tr(g.sim_total.line)}</span>`);
+  if (g.ml_value) chips.push(`<span>ML value: <b>${esc(g.ml_value)}</b></span>`);
+  const vg = g.vegas_spread == null ? `<b>No line yet</b>` : `<b>${esc(favText(g))}</b><small>O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</small>`;
+  return `<article class="gc ${off ? "off" : ""}"><div class="top"><span>${dayOf(g.kickoff).split(",")[0].slice(0, 3)} ${timeOf(g.kickoff)}${g.neutral ? " · neutral site" : ""}</span><b>PROJECTED</b></div>
+    ${team(g.away, g.pred_away, !hw)}${team(g.home, g.pred_home, hw)}
+    <div class="lines"><div><h4>VEGAS LINE</h4>${vg}</div><div><h4>SIM LINE</h4><b>${esc(simLine(g))}</b><small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></div></div>
+    <div class="sides"><span class="lb">SIM SIDES</span>${chips.join("")}${wx(g)}</div>
+    ${g.home_info ? `<details class="more"><summary>Game breakdown</summary>${matchupPanel(g)}</details>` : ""}</article>`;
+}
+function renderGames() {
+  const q = GF.q.trim().toLowerCase(), all = GAMES, days = [...new Set(all.map(g => dayOf(g.kickoff)))];
+  const nOff = all.filter(g => g.spread_play || g.total_play).length;
+  const seg = (items, cur, key) => `<div class="seg">${items.map(([v, l]) => `<button data-k="${key}" data-v="${esc(v)}" aria-pressed="${cur === v}">${l}</button>`).join("")}</div>`;
+  const list = all.filter(g => (GF.mode === "all" || g.spread_play || g.total_play) && (!GF.day || dayOf(g.kickoff) === GF.day) &&
+    (!q || (g.home + " " + g.away).toLowerCase().includes(q)));
+  $("gfilters").innerHTML = `<div class="search"><input id="gq" type="search" placeholder="Find a team" value="${esc(GF.q)}" aria-label="Find a team"></div>` +
+    seg([["all", "All games"], ["official", `Official plays (${nOff})`]], GF.mode, "mode") +
+    (days.length > 1 ? seg([["", "Every day"], ...days.map(d => [d, d.split(",")[0].slice(0, 3)])], GF.day, "day") : "") +
+    `<span class="gcount">${list.length} of ${all.length} games</span>`;
+  let html = "", last = "", buf = "";
+  const flush = () => { if (buf) html += `<div class="ggrid">${buf}</div>`; buf = ""; };
+  list.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); const n = list.filter(x => dayOf(x.kickoff) === k).length; html += `<div class="dayh">${esc(k)} <small>${n} game${n === 1 ? "" : "s"}</small></div>`; last = k; } buf += gameCard(g); });
+  flush();
+  $("days").innerHTML = html || `<div class="empty">${all.length ? "No games match those filters." : "No games in the next few days. Check back closer to kickoff."}</div>`;
+  const qi = $("gq"); if (document.activeElement && document.activeElement.id === "gq") { /* keep focus */ }
+}
+$("gfilters").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (!b) return; GF[b.dataset.k] = b.dataset.v; renderGames(); });
+$("gfilters").addEventListener("input", e => { if (e.target.id !== "gq") return; GF.q = e.target.value; const pos = e.target.selectionStart; renderGames(); const n = $("gq"); n.focus(); n.setSelectionRange(pos, pos); });
+
 function render() {
   const d = D[L];
   if (!d) { $("stamp").textContent = ""; ["lstats","lchart","lall","ltable","archlist","playlist","bstats","bchart","btable"].forEach(i => $(i).innerHTML = "");
@@ -311,10 +373,7 @@ function render() {
 
   $("archlist").innerHTML = archiveBlock(d.live && d.live.archive);
   $("lastwk").innerHTML = lastWeekBlock(d.live && d.live.last_week);
-  let html = "", last = "", buf = "", n = 0;
-  const flush = () => { if (buf) html += `<div class="scroll"><table><thead><tr><th>Matchup</th><th>Model score</th><th>Vegas line</th><th>Official play · model sides</th></tr></thead><tbody>${buf}</tbody></table></div>`; buf = ""; };
-  d.games.forEach(g => { const k = dayOf(g.kickoff); if (k !== last) { flush(); html += `<h3>${esc(k)}</h3>`; last = k; } buf += gameRow(g, n++); });
-  flush(); $("days").innerHTML = html || `<div class="empty">No games in the next few days. Check back closer to kickoff.</div>`;
+  GAMES = d.games; renderGames();
 
   const b = d.backtest_record, ss = (d.backtest_seasons || []).map(String);
   const ids = ["bstats","bchart","btable"];
