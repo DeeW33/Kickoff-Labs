@@ -1115,6 +1115,50 @@ class ScorePredictor:
 # --------------------------------------------------------------------------- #
 
 
+MANUAL_ALIAS = {"WSH": "WAS", "LAR": "LA", "JAX": "JAC", "LVR": "LV", "OAK": "LV", "SD": "LAC", "STL": "LA"}
+
+
+def apply_manual_lines(games, path="data/manual_lines.json"):
+    """Lines the site owner pasted from another source (e.g. Action Network) for UNPLAYED games.
+    Each entry: {"home","away","favorite","spread" (points the favorite lays, e.g. 3.5),"total","ml_home","ml_away",
+    "week"?,"season"?,"source"?}. Only the fields given are replaced. Finished games are never touched."""
+    if not os.path.exists(path):
+        return games
+    try:
+        rows = json.load(open(path))
+    except Exception as e:
+        warn(f"manual lines file unreadable ({e}); ignoring it")
+        return games
+    ab = lambda t: MANUAL_ALIAS.get(str(t).strip().upper(), str(t).strip().upper())
+    hit = 0
+    for r in rows:
+        h, a = ab(r.get("home")), ab(r.get("away"))
+        m = (games.home == h) & (games.away == a) & games.home_pts.isna()
+        if r.get("week") is not None:
+            m &= games.week == r["week"]
+        if r.get("season") is not None:
+            m &= games.season == r["season"]
+        if m.sum() != 1:
+            warn(f"manual line for {a} @ {h} matched {int(m.sum())} unplayed games; skipped")
+            continue
+        i = games.index[m][0]
+        if r.get("spread") is not None:
+            fav, sp = ab(r.get("favorite", "")), abs(float(r["spread"]))
+            if sp and fav not in (h, a):
+                warn(f"manual line for {a} @ {h}: favorite '{r.get('favorite')}' is neither team; skipped")
+                continue
+            games.loc[i, "mkt_spread"] = 0.0 if not sp else (sp if fav == h else -sp)
+        if r.get("total") is not None:
+            games.loc[i, "mkt_total"] = float(r["total"])
+        if r.get("ml_home") is not None:
+            games.loc[i, "mkt_ml_home"] = float(r["ml_home"])
+        if r.get("ml_away") is not None:
+            games.loc[i, "mkt_ml_away"] = float(r["ml_away"])
+        hit += 1
+    print(f"  manual lines applied to {hit}/{len(rows)} games ({path})", file=sys.stderr)
+    return games
+
+
 def prepare(args, forecast_days=None):
     lg = LEAGUES[args.league]
     start = args.start or lg.default_start
@@ -1141,6 +1185,7 @@ def prepare(args, forecast_days=None):
         if c not in games:
             games[c] = np.nan
     games = games.sort_values("date", kind="stable").reset_index(drop=True)
+    games = apply_manual_lines(games)
     return lg, games, ctx
 
 
@@ -1958,6 +2003,15 @@ def cmd_export(args):
         u["spread_play"] = official.get(f"{u['game_id']}|spread")
         u["total_play"] = official.get(f"{u['game_id']}|total")
         sp_, tp_ = u["spread_play"], u["total_play"]
+        # the logged play keeps its side and line, but the gap shown is the model's CURRENT gap vs the market
+        if sp_ and pd.notna(u.get("vegas_spread")) and pd.notna(u.get("pred_margin")):
+            home_side = sp_.get("team") == u["home"]
+            pm = u["pred_margin"] if home_side else -u["pred_margin"]
+            mm = u["vegas_spread"] if home_side else -u["vegas_spread"]
+            sp_["edge_logged"], sp_["edge"] = sp_["edge"], round(float(pm - mm), 1)
+        if tp_ and pd.notna(u.get("vegas_total")) and pd.notna(u.get("pred_total")):
+            d_ = u["pred_total"] - u["vegas_total"]
+            tp_["edge_logged"], tp_["edge"] = tp_["edge"], round(float(d_ if tp_.get("side") == "Over" else -d_), 1)
         if sp_:
             if sp_.get("kind") == "ml":
                 hp = u["home_win_prob"]
