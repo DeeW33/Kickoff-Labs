@@ -97,7 +97,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
 .top{margin-top:1.4rem}.tabs{gap:0;border-bottom:1px solid var(--line);width:100%}.top{align-items:flex-end}
 .tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:.6rem 1.1rem;font-weight:500;color:var(--mute);margin-bottom:-1px}
 .tab[aria-selected=true]{background:none;border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
-.stamp{font:400 .72rem "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;width:100%}
+.top{border-bottom:1px solid var(--line);padding-bottom:.5rem}.stamp{font:400 .72rem "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;width:100%}
 .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:2rem;align-items:end;margin:1.2rem 0 1.4rem}
 @media (max-width:820px){.hero{grid-template-columns:1fr;gap:.4rem}}
 .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem}
@@ -143,10 +143,6 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
 </div></header>
 <main class="wrap">
   <div class="top">
-    <div class="tabs" role="tablist" aria-label="League">
-      <button class="tab" role="tab" data-l="nfl" aria-selected="true">NFL</button>
-      <button class="tab" role="tab" data-l="cfb" aria-selected="false">College</button>
-    </div>
     <div class="stamp" id="stamp"></div>
   </div>
 
@@ -214,7 +210,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
 
   <footer>
     <p>For entertainment only. Not betting or financial advice. You must be 21+ (or the legal age where you live). Never bet money you can't afford to lose. Gambling problem? Call 1-800-GAMBLER. Past results do not guarantee future results.</p>
-    <p>Vegas lines come from nflverse's weekly odds data and may lag the market. Data: <a href="https://github.com/nflverse">nflverse</a>, <a href="https://collegefootballdata.com">CollegeFootballData.com</a>, <a href="https://open-meteo.com">Open-Meteo</a>.</p>
+    <p>Vegas lines come from nflverse's weekly odds data and may lag the market. Data: <a href="https://github.com/nflverse">nflverse</a>, <a href="https://open-meteo.com">Open-Meteo</a>.</p>
   </footer>
 </main>
 
@@ -297,7 +293,7 @@ function matchupPanel(g) {
   let ctx = `<tr class="grp"><td colspan="3">Context</td></tr>`;
   for (const [label, f] of ctxRows) { const x = f(a), y = f(h); if (x != null || y != null) ctx += `<tr><td>${label}</td><td>${x ?? "—"}</td><td>${y ?? "—"}</td></tr>`; }
   return keyEdges(g) + `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
-    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. Key edges compare a team's offensive rank against the other side's defensive rank (percentile = share of teams it beats). EPA is expected points added per play (college uses the similar PPA). Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
+    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. Key edges compare a team's offensive rank against the other side's defensive rank (percentile = share of teams it beats). EPA is expected points added per play. Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
 }
 function histNote(x) {
   const c = D[L] && D[L].calibration; if (!c) return "";
@@ -471,12 +467,9 @@ function route() {
   const t = pg === "backtest" && h.length > 9 ? document.getElementById(h.slice(1)) : null;
   if (t) t.scrollIntoView(); else window.scrollTo(0, 0);
 }
-document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { L = t.dataset.l;
-  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t)); render(); }));
 $("days").addEventListener("click", e => { const b = e.target.closest(".mbtn"); if (!b) return; const r = $("det" + b.dataset.t); r.hidden = !r.hidden; b.textContent = r.hidden ? "Matchup details" : "Hide details"; });
 window.addEventListener("hashchange", route);
-Promise.all([load("nfl"), load("cfb")]).then(() => {
-  if (!D.nfl && D.cfb) { L = "cfb"; document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x.dataset.l === "cfb")); }
+load("nfl").then(() => {
   render(); route(); });
 </script>
 </body>
