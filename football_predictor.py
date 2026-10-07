@@ -1643,7 +1643,7 @@ def update_pick_log(path, league, cands, games, now):
         for r, e in enumerate(sorted(es, key=lambda e: -e["edge"]), 1):
             official[e["id"]] = {"team": e.get("team"), "side": e.get("side"), "line": e["line"],
                                  "kind": e["type"] if e["type"] == "ml" else None, "ml": e.get("ml"),
-                                 "edge": e["edge"], "units": e["units"], "rank": r, "of": TOP_N}
+                                 "edge": e["edge"], "units": e["units"], "rank": r, "of": TOP_N, "wk": list(wk(e))}
     return live, official
 
 
@@ -2021,6 +2021,13 @@ def cmd_export(args):
         if tp_:
             tp_["prob"] = float(norm.cdf(tp_["edge"] / sig_t))
 
+    # keep the five plays but order them by the model's CURRENT gap (played games keep their logged gap)
+    byk2 = defaultdict(list)
+    for pid, o in official.items():
+        byk2[tuple(o.get("wk") or ())].append(o)
+    for os_ in byk2.values():
+        for r_, o in enumerate(sorted(os_, key=lambda o: -(o["edge"] if o.get("edge") is not None else -99)), 1):
+            o["rank"] = r_
     payload = _clean({
         "league": lg.name, "generated_at": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
