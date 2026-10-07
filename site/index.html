@@ -75,6 +75,10 @@ footer{margin:3rem 0 2rem;padding-top:1rem;border-top:1px solid var(--line);colo
 .sides{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .9rem;border-top:1px solid var(--line);margin-top:.8rem;padding-top:.7rem;font-size:.86rem}
 .sides .lb{color:var(--mute);font-size:.7rem;letter-spacing:.1em}.sides .of{color:var(--amber);font-weight:700}
 .gc .more{margin-top:.7rem}
+
+.kedge{margin:0 0 .9rem}.kedge h5{margin:0 0 .5rem;font:700 .78rem ui-monospace,Menlo,monospace;letter-spacing:.14em;color:var(--mute)}
+.kedge p{display:flex;gap:.65rem;align-items:flex-start;margin:.35rem 0;font-size:.92rem;line-height:1.35}
+.kedge i{flex:none;width:.7rem;height:.7rem;border-radius:50%;margin-top:.38rem}
 </style>
 </head>
 <body>
@@ -204,6 +208,21 @@ function playersOut(c, starter, kind) {
   const l = c.report.players.filter(p => p.starter === starter && (kind === "out" ? p.tier === "out" : p.tier !== "out"));
   return l.map(p => `${esc(p.name)} <small>${esc(p.pos)}${kind === "dq" ? " · " + esc(p.status) : ""}</small>`).join(", ");
 }
+function keyEdges(g) {
+  const a = g.away_info, h = g.home_info, N = D[L].stats_pool; if (!a || !h || !N || N < 2 || !a.games || !h.games) return "";
+  const pct = r => Math.round((N - r) / (N - 1) * 100);
+  const PAIRS = [["pass_epa_off", "pass_epa_def", "pass efficiency", "pass efficiency defense"], ["rush_epa_off", "rush_epa_def", "run efficiency", "run efficiency defense"],
+                 ["third_off", "third_def", "third-down offense", "third-down defense"]];
+  const out = [];
+  for (const [o, d, on, dn] of PAIRS) for (const [att, def, ac, tn, dnm] of [[a, h, "#d9822b", g.away, g.home], [h, a, "#3b6fd4", g.home, g.away]]) {
+    const so = att.s[o], sd = def.s[d]; if (!so || !sd || !so.r || !sd.r) continue;
+    const po = pct(so.r), pd = pct(sd.r), gap = po - pd;
+    if (gap >= 25 && po >= 60) out.push({gap, c: ac, t: `${esc(tn)}'s ${on} (${ord(po)} percentile) against ${esc(dnm)}'s ${dn} (${ord(pd)}).`});
+  }
+  out.sort((x, y) => y.gap - x.gap);
+  const top = out.slice(0, 4);
+  return `<div class="kedge"><h5>KEY EDGES</h5>${top.length ? top.map(e => `<p><i style="background:${e.c}"></i><span>${e.t}</span></p>`).join("") : `<p><span>No big mismatches between these two teams' offenses and defenses yet.</span></p>`}</div>`;
+}
 function matchupPanel(g) {
   const a = g.away_info, h = g.home_info; if (!a || !h) return "";
   const cell = (c, k, t) => { const s = c.s[k]; return s ? `${fmtS(k, s.v, t)}${s.r ? `<small>${ord(s.r)}</small>` : ""}` : "—"; };
@@ -222,8 +241,8 @@ function matchupPanel(g) {
     ["Injury load", c => c.inj ? (Object.entries(c.inj).filter(([, v]) => v > 0).map(([k, v]) => `${k.toUpperCase()} ${tr(v)}`).join(", ") || "None listed") : null]];
   let ctx = `<tr class="grp"><td colspan="3">Context</td></tr>`;
   for (const [label, f] of ctxRows) { const x = f(a), y = f(h); if (x != null || y != null) ctx += `<tr><td>${label}</td><td>${x ?? "—"}</td><td>${y ?? "—"}</td></tr>`; }
-  return `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
-    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. EPA is expected points added per play (college uses the similar PPA). Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
+  return keyEdges(g) + `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
+    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. Key edges compare a team's offensive rank against the other side's defensive rank (percentile = share of teams it beats). EPA is expected points added per play (college uses the similar PPA). Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
 }
 function histNote(x) {
   const c = D[L] && D[L].calibration; if (!c) return "";
