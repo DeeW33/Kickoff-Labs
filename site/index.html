@@ -192,7 +192,7 @@ function stats(o, label) {
     <div class="stat"><b>${t ? pct1(o.win_pct) : "—"}</b><span>Win rate (break-even is 52.4%)${t ? `; 95% range ${pct1(o.lo)} to ${pct1(o.hi)}` : ""}</span></div>
     <div class="stat"><b class="${o.units >= 0 ? "pos" : "neg"}">${t ? units(o.units) : "0.0u"}</b><span>Units at −110</span></div>`;
 }
-function wx(g) { const w = g.weather; if (!w) return ""; return w.dome ? `<span class="chip">Indoors</span>` : `<span class="chip">${Math.round(w.temp)}°F, ${Math.round(w.wind)} mph wind${w.known ? "" : " (typical)"}</span>`; }
+function wx(g) { const w = g.weather; if (!w) return ""; return w.dome ? `<span class="chip">Indoors</span>` : `<span class="chip">${Math.round(w.temp)}°F, ${Math.round(w.wind)} mph wind${w.known && w.gust != null && w.gust >= 15 && w.gust >= w.wind + 5 ? `, gusts ${Math.round(w.gust)}` : ""}${w.known && w.pop != null && w.pop >= 30 ? ` · ${Math.round(w.pop)}% rain/snow` : ""}${w.known ? "" : " (typical)"}</span>`; }
 
 const ord = n => { const q = ["th","st","nd","rd"], v = n % 100; return n + (q[(v - 20) % 10] || q[v] || q[0]); };
 const ROWS = [["Scoring"],["Points per game","ppg"],["Points allowed per game","papg"],["Points per game, last 3","ppg_l3"],["Points allowed, last 3","papg_l3"],
