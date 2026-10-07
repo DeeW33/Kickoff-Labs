@@ -510,32 +510,48 @@ def apply_forecasts(games: pd.DataFrame, days: int) -> pd.DataFrame:
             & ~games.roof.isin(["dome", "closed"])
             & (games.date >= today - pd.Timedelta(days=1))
             & (games.date <= today + pd.Timedelta(days=min(days, 15))))
-    cache, n_ok = {}, 0
-    for idx in games.index[need]:
-        g = games.loc[idx]
-        if g.home not in NFL_STADIUMS:
-            continue
-        try:
-            if g.home not in cache:
-                lat, lon = NFL_STADIUMS[g.home]
+    cache, failed, n_ok = {}, set(), 0
+    for c in ("gust", "pop"):
+        if c not in games:
+            games[c] = np.nan
+
+    def fetch(home):
+        lat, lon = NFL_STADIUMS[home]
+        last = None
+        for _try in range(2):                      # one retry for a flaky request
+            try:
                 r = requests.get("https://api.open-meteo.com/v1/forecast", timeout=20, params=dict(
-                    latitude=lat, longitude=lon, hourly="temperature_2m,wind_speed_10m",
+                    latitude=lat, longitude=lon,
+                    hourly="temperature_2m,wind_speed_10m,wind_gusts_10m,precipitation_probability",
                     temperature_unit="fahrenheit", wind_speed_unit="mph",
                     timezone="UTC", forecast_days=16))
                 r.raise_for_status()
                 h = r.json()["hourly"]
-                cache[g.home] = (pd.to_datetime(h["time"]), np.array(h["temperature_2m"], float),
-                                 np.array(h["wind_speed_10m"], float))
-            times, temps, winds = cache[g.home]
+                arr = lambda k: np.array([np.nan if v is None else v for v in h.get(k, [np.nan] * len(h["time"]))], float)
+                return (pd.to_datetime(h["time"]), arr("temperature_2m"), arr("wind_speed_10m"),
+                        arr("wind_gusts_10m"), arr("precipitation_probability"))
+            except Exception as e:
+                last = e
+        raise last
+
+    for idx in games.index[need]:
+        g = games.loc[idx]
+        if g.home not in NFL_STADIUMS or g.home in failed:
+            continue
+        try:
+            if g.home not in cache:
+                cache[g.home] = fetch(g.home)
+            times, temps, winds, gusts, pops = cache[g.home]
             gt = g.gametime if isinstance(g.gametime, str) and ":" in g.gametime else "13:00"
             ko = (pd.Timestamp(f"{g.date:%Y-%m-%d} {gt}", tz="America/New_York")
                   .tz_convert("UTC").tz_localize(None))
             i = int(np.abs((times - ko).total_seconds()).argmin())
             games.loc[idx, "temp"], games.loc[idx, "wind"] = temps[i], winds[i]
+            games.loc[idx, "gust"], games.loc[idx, "pop"] = gusts[i], pops[i]
             n_ok += 1
-        except Exception as e:  # network down, API change, etc. -> fall back to climatology
+        except Exception as e:  # one team failing no longer stops the rest; that game falls back to climatology
+            failed.add(g.home)
             warn(f"forecast failed for {g.home}: {e}")
-            break
     if need.any():
         print(f"  weather forecasts applied to {n_ok}/{int(need.sum())} upcoming outdoor games",
               file=sys.stderr)
@@ -1942,7 +1958,8 @@ def cmd_export(args):
             f = feats.loc[idx]
             wx = None
             if "weather" in gc:
-                wx = {"dome": bool(f.is_dome), "temp": f.temp, "wind": f.wind, "known": bool(f.weather_known)}
+                wx = {"dome": bool(f.is_dome), "temp": f.temp, "wind": f.wind, "known": bool(f.weather_known),
+                      "gust": r.get("gust"), "pop": r.get("pop")}
             upcoming.append({"kickoff": _kickoff(r), "week": int(r.week), "game_id": _gid(r.game_id), "away": r.away, "home": r.home,
                              "neutral": bool(r.neutral), "pred_away": r.pred_away, "pred_home": r.pred_home,
                              "pred_margin": r.pred_margin, "pred_total": r.pred_total,
