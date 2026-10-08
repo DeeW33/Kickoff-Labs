@@ -7,7 +7,7 @@ on:
   workflow_dispatch:           # "Run workflow" button
   push:
     branches: [main]
-    paths: ["site/**", "football_predictor.py", "requirements.txt", ".github/workflows/**"]
+    paths: ["site/**", "football_predictor.py", "tests/**", "requirements.txt", ".github/workflows/**"]
 
 permissions:
   contents: write              # needed to save the pick log back to the repo
@@ -34,8 +34,28 @@ jobs:
           path: data_cache
           key: data-${{ github.run_id }}
           restore-keys: data-
+      - name: Automated checks (grading, top-5 rule, duplicates, pick-log safety, Opta freshness)
+        run: python -m unittest discover -s tests -v
       - name: NFL predictions
         run: python football_predictor.py export --league nfl --out _site/data/nfl.json
+      - name: Data health report
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          try:
+              h = json.load(open("_site/data/nfl.json"))["health"]
+          except Exception as e:
+              print("::error title=No health report::the export did not produce one:", e)
+          else:
+              print("Overall:", h["level"].upper())
+              for c in h["checks"]:
+                  print(f"{c['level'].upper():6} {c['name']}: {c['detail']}")
+                  if c["level"] == "warn":
+                      print(f"::warning title={c['name']}::{c['detail']}")
+                  if c["level"] == "error":
+                      print(f"::error title={c['name']}::{c['detail']}")
+          PY
       - name: Save pick log (public, timestamped by git history)
         continue-on-error: true
         run: |
