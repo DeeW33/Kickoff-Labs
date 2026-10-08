@@ -7,7 +7,7 @@ on:
   workflow_dispatch:           # "Run workflow" button
   push:
     branches: [main]
-    paths: ["site/**", "football_predictor.py", "tests/**", "requirements.txt", ".github/workflows/**"]
+    paths: ["site/**", "football_predictor.py", "test_*.py", "tests/**", "requirements.txt", ".github/workflows/**"]
 
 permissions:
   contents: write              # needed to save the pick log back to the repo
@@ -35,7 +35,7 @@ jobs:
           key: data-${{ github.run_id }}
           restore-keys: data-
       - name: Automated checks (grading, top-5 rule, duplicates, pick-log safety, Opta freshness)
-        run: python -m unittest discover -s tests -v
+        run: python -m unittest discover -s . -p "test_*.py" -v
       - name: NFL predictions
         run: python football_predictor.py export --league nfl --out _site/data/nfl.json
       - name: Data health report
