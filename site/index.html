@@ -149,7 +149,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
   <div id="v-main">
     <section id="live">
       <h1>Season record</h1>
-      <p class="lead">Each week the model's five highest-rated spread plays are the only official plays this season (the backtest of past seasons also includes over/under plays). For this season's finished weeks, the plays shown are the top five spread plays the model would have made going into each week, built after the fact from its pre-game predictions at the final lines, so they replace the plays first logged live. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
+      <p class="lead">Each week the model's five highest-rated spread plays are the only official plays this season (the backtest of past seasons also includes over/under plays). If fewer than five games have a gap of 3+ points, the week is filled with the next-largest gaps at 1 unit. For this season's finished weeks, the plays shown are the top five spread plays the model would have made going into each week, built after the fact from its pre-game predictions at the final lines, so they replace the plays first logged live. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
@@ -324,10 +324,10 @@ function gameRow(g, i) {
   return `<tr><td><b>${esc(g.away)} @ ${esc(g.home)}</b>${g.neutral ? " *" : ""}<small>${timeOf(g.kickoff)} ${wx(g)}</small>${g.home_info ? `<button class="mbtn" data-t="${i}">Matchup details</button>` : ""}</td>
     <td>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}<small>Total ${Math.round(g.pred_total)} · ${esc(g.home)} win ${pct(g.home_win_prob)}</small></td><td>${v}</td><td>${c || "—"}</td></tr>${g.home_info ? `<tr class="det" id="det${i}" hidden><td colspan="4">${matchupPanel(g)}</td></tr>` : ""}`;
 }
-function gameStats(a) {
+function gameStats(a, ats, su) {
   if (!a || !a.su || !a.spread) return "";
   const one = (v, label) => { const n = v.w + v.l; return `<div class="stat"><b>${n ? pct1(v.win_pct) : "—"}</b><span>${label}${n ? `<br>${recTxt(v)}` : ""}</span></div>`; };
-  return one(a.spread, "Against the spread, every game") + one(a.su, "Straight up, every game");
+  return (ats ? one(ats, "Against the spread, top 5 picks only") : one(a.spread, "Against the spread, every game")) + (su ? one(su, "Straight up, games with a top 5 pick") : one(a.su, "Straight up, every game"));
 }
 function gameTable(a, ss) {
   if (!a || !a.by_season) return "";
@@ -433,7 +433,7 @@ function render() {
     const ys = d.backtest_ytd, useS = ys && ys.overall && ys.overall.all.w + ys.overall.all.l + ys.overall.all.p > 0;
     const o = useS ? ys.overall.all : lv.record.all, done = o.w + o.l + o.p;
     $("lstats").innerHTML = stats(o, useS ? `${ys.season} season record, all official plays (Weeks 1–${ys.weeks_done})` : "Live record of official plays");
-    $("lstats").innerHTML += gameStats(lv.all_bt && lv.all_bt.ytd);
+    $("lstats").innerHTML += (useS ? gameStats(lv.all_bt && lv.all_bt.ytd, ys.overall.spread, ys.overall.su) : gameStats(lv.all_bt && lv.all_bt.ytd));
     $("lchart").innerHTML = chart(useS ? ys.series : lv.series);
     $("lnote").textContent = useS ? `All official plays from the ${ys.season} season so far. Plays logged before kickoff since ${shortDay(lv.since)} are live results; earlier weeks are replayed with the same rules, using only earlier data for each game. ${lv.pending} plays pending.` :
       done ? `Tracking began ${shortDay(lv.since)}. ${lv.pending} plays pending.` :
@@ -459,7 +459,7 @@ function render() {
     const yrs = ss.length > 1 ? `${ss[0]} to ${ss[ss.length - 1]}` : ss[0];
     $("btlead").textContent = `Each week, the model's five biggest gaps from the Vegas line are the official plays. This page shows what that rule would have done in past seasons. Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is not the live record, which only counts picks logged before kickoff.`;
     $("pasthead").textContent = `Past ${ss.length} seasons (${yrs})`;
-    $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bstats").innerHTML += gameStats(d.live && d.live.all_bt && d.live.all_bt.past); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss) + gameTable(d.live && d.live.all_bt, ss);
+    $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bstats").innerHTML += gameStats(d.live && d.live.all_bt && d.live.all_bt.past, b.overall.spread, b.overall.su); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss) + gameTable(d.live && d.live.all_bt, ss);
     $("btnote").textContent = `Five picks a week is about 85 a season, so even a few seasons is a small sample, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds for spreads and totals (1 unit = 1% of a bankroll); moneyline plays, used when the spread is within 2 points, are paid at the posted moneyline. Spreads and totals are graded at the line in the free data.`;
   } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; ids.forEach(i => $(i).innerHTML = ""); $("btnote").textContent = ""; }
 }
