@@ -1645,12 +1645,60 @@ def grade_pick(e, hp, ap):
     return res, e["units"] * (WIN_UNITS if res == 1 else -1.0 if res == -1 else 0.0)
 
 
+PICK_TYPES = ("spread",)   # official top plays are spread plays only (near pick'ems are played on the moneyline)
 TOP_N, LOCK_DAYS = 5, 3   # official plays per week; a week's plays lock this many days before its first kickoff
 
 
 def _utc(k):
     t = pd.Timestamp(k)
     return t.tz_localize("UTC") if t.tzinfo is None else t
+
+
+def spread_only_backfill(path, allr, games, season, now):
+    """The official top plays are spread plays only. Total plays already in this season's log are removed, and any
+    finished week left short of TOP_N is topped up with the plays the rules would have made on spreads (marked
+    replay, built from the model's pre-game predictions and graded at the final line)."""
+    if not os.path.exists(path):
+        return
+    log = json.load(open(path))
+    gone = [e for e in log if e.get("type") == "total"]
+    if not gone:
+        return
+    log = [e for e in log if e.get("type") != "total"]
+    meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
+    weeks = {(e["season"], e["week"]) for e in gone if e.get("season") is not None}
+    for (sn, w) in sorted(weeks):
+        g_w = games[(games.season == sn) & (games.week == w)]
+        if g_w.empty or not (g_w.home_pts.notna().all() and g_w.away_pts.notna().all()):
+            continue                                              # unfinished weeks refill live
+        have = [e for e in log if (e.get("season"), e.get("week")) == (sn, w)]
+        used = {e["game_id"] for e in have}
+        d = allr[(allr.season == sn) & allr.mkt_spread.notna()]
+        d = d[games.loc[d.index, "week"] == w]
+        cand = []
+        for idx, r in d.iterrows():
+            g = games.loc[idx]
+            if _gid(g.game_id) in used:
+                continue
+            p = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
+                           r.mkt_ml_home, r.mkt_ml_away)["spread_play"]
+            if not p:
+                continue
+            e = {"id": f"{_gid(g.game_id)}|spread", "type": p.get("kind") or "spread", "ml": p.get("ml"),
+                 "game_id": _gid(g.game_id), "league": "nfl", "season": int(sn), "week": int(w), "kickoff": _kickoff(g),
+                 "away": g.away, "home": g.home, "team": p.get("team"), "side": p.get("side"), "line": p["line"],
+                 "edge": p["edge"], "units": p["units"], "pred_away": r.pred_away, "pred_home": r.pred_home,
+                 "status": "graded", "replay": True, "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "home_pts": float(g.home_pts), "away_pts": float(g.away_pts)}
+            e["result"], net = grade_pick(e, e["home_pts"], e["away_pts"])
+            e["net"] = round(net, 3)
+            cand.append(e)
+        cand.sort(key=lambda e: -e["edge"])
+        log += _clean(cand[:max(TOP_N - len(have), 0)])
+    log.sort(key=lambda e: (e.get("season") or 0, e.get("week") or 0, e["kickoff"]))
+    with open(path, "w") as f:
+        json.dump(log, f, indent=1)
+    print(f"  spread-only: removed {len(gone)} total plays from the log and topped up finished weeks", file=sys.stderr)
 
 
 def update_pick_log(path, league, cands, games, now):
@@ -1690,7 +1738,7 @@ def update_pick_log(path, league, cands, games, now):
         if _utc(min(u["kickoff"] for u in us)) - now > pd.Timedelta(days=LOCK_DAYS) or cnt[k] >= TOP_N:
             continue
         pool = [(p["edge"], typ, u, p) for u in us if _before_kickoff(u["kickoff"], now)
-                for typ in ("spread", "total") for p in [u.get(f"{typ}_play")]
+                for typ in PICK_TYPES for p in [u.get(f"{typ}_play")]
                 if p and f"{u['game_id']}|{typ}" not in have]
         pool.sort(key=lambda x: -x[0])
         for edge, typ, u, p in pool[:TOP_N - cnt[k]]:
@@ -1879,7 +1927,7 @@ def all_pick_blocks(d):
     return out
 
 
-def play_frame(allr, games):
+def play_frame(allr, games, spreads_only=True):
     """Every official play the rules would have made, graded (for the backtest)."""
     d = allr[allr.mkt_spread.notna()].copy()
     d["date"] = games.loc[d.index, "date"]
@@ -1909,7 +1957,7 @@ def play_frame(allr, games):
     tp["units"] = np.where(et[tp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
     tp["pay"] = WIN_UNITS
     cols = ["date", "season", "week", "type", "res", "units", "edge", "pay"]
-    out = pd.concat([sp[cols], tp[cols]])
+    out = pd.concat([sp[cols]] if spreads_only else [sp[cols], tp[cols]])
     out = out.sort_values("edge", ascending=False).groupby(["season", "week"]).head(TOP_N).sort_values("date")
     out["net"] = out.units * np.where(out.res == 1, out.pay, np.where(out.res == -1, -1.0, 0.0))
     return out
@@ -1930,7 +1978,7 @@ def replay_weeks(allr, games, season, skip_weeks):
             continue
         pk = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
                         r.mkt_ml_home, r.mkt_ml_away)
-        for typ in ("spread", "total"):
+        for typ in PICK_TYPES:
             p = pk[f"{typ}_play"]
             if not p:
                 continue
@@ -1956,7 +2004,7 @@ def hist_calibration(allr, games):
     old = TOP_N
     TOP_N = 999
     try:
-        pf = play_frame(allr, games)
+        pf = play_frame(allr, games, spreads_only=False)
     finally:
         TOP_N = old
     out = {}
@@ -2254,6 +2302,7 @@ def cmd_export(args):
                           "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"],
                           "mkt_spread": r.mkt_spread, "mkt_total": r.mkt_total,
                           "mkt_ml_home": r.mkt_ml_home, "mkt_ml_away": r.mkt_ml_away})
+    spread_only_backfill(args.log or f"data/picks_{lg.name}.json", allr, games, current_season(), now)
     live, official = update_pick_log(args.log or f"data/picks_{lg.name}.json", lg.name, cands, games, now)
     all_live = update_all_log(f"data/allpicks_{lg.name}.json", lg.name, upcoming, games, now)
     live["all"] = all_live
