@@ -1645,7 +1645,7 @@ def grade_pick(e, hp, ap):
     return res, e["units"] * (WIN_UNITS if res == 1 else -1.0 if res == -1 else 0.0)
 
 
-PICK_TYPES = ("spread",)   # official top plays are spread plays only (near pick'ems are played on the moneyline)
+PICK_TYPES = ("spread",)   # this season's official top plays are spread plays only (backtests of past seasons still include totals) (near pick'ems are played on the moneyline)
 TOP_N, LOCK_DAYS = 5, 3   # official plays per week; a week's plays lock this many days before its first kickoff
 
 
@@ -1661,10 +1661,11 @@ def spread_only_backfill(path, allr, games, season, now):
     if not os.path.exists(path):
         return
     log = json.load(open(path))
-    gone = [e for e in log if e.get("type") == "total"]
+    is_gone = lambda e: e.get("type") == "total" and e.get("season") == season     # past seasons keep their totals
+    gone = [e for e in log if is_gone(e)]
     if not gone:
         return
-    log = [e for e in log if e.get("type") != "total"]
+    log = [e for e in log if not is_gone(e)]
     meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
     weeks = {(e["season"], e["week"]) for e in gone if e.get("season") is not None}
     for (sn, w) in sorted(weeks):
@@ -1927,7 +1928,7 @@ def all_pick_blocks(d):
     return out
 
 
-def play_frame(allr, games, spreads_only=True):
+def play_frame(allr, games, spreads_only=False):
     """Every official play the rules would have made, graded (for the backtest)."""
     d = allr[allr.mkt_spread.notna()].copy()
     d["date"] = games.loc[d.index, "date"]
@@ -2285,7 +2286,7 @@ def cmd_export(args):
     g26 = games[games.season == ytd_season]
     done_wk = [w for w, g in g26.groupby("week") if g.home_pts.notna().all() and g.away_pts.notna().all()]
     a26 = allr[(allr.season == ytd_season) & games.loc[allr.index, "week"].isin(done_wk)]   # only fully played weeks
-    pf26 = play_frame(a26, games)
+    pf26 = play_frame(a26, games, spreads_only=True)   # this season's official plays are spread plays only
     bt_ytd = backtest_block(pf26) if len(pf26) else None
     if bt_ytd:
         bt_ytd["by_week"] = [{"week": int(w), **rec(g.res, g.units)} for w, g in pf26.groupby("week")]
