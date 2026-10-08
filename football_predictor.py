@@ -144,6 +144,9 @@ def warn(msg: str):
     print(f"  [warn] {msg}", file=sys.stderr)
 
 
+HEALTH_STATS = {}      # filled in by the data steps (ESPN, weather, Opta, pick log) and summarized by build_health()
+
+
 # --------------------------------------------------------------------------- #
 # Caching / HTTP helpers
 # --------------------------------------------------------------------------- #
@@ -563,9 +566,11 @@ def fetch_espn_report():
         n_out = sum(len(v["out"]) for v in rep.values())
         n_dep = sum(1 for v in rep.values() if v["qb_depth"])
         print(f"  ESPN report: {n_out} injured players, depth charts for {n_dep}/{len(rep)} teams", file=sys.stderr)
+        HEALTH_STATS["espn"] = {"ok": True, "injured": n_out, "depth_teams": n_dep, "teams": len(rep)}
         return rep
     except Exception as e:
         warn(f"ESPN injury/depth data unavailable ({e}); using nflverse report only")
+        HEALTH_STATS["espn"] = {"ok": False, "error": str(e)[:160]}
         return {}
 
 
@@ -621,6 +626,7 @@ def apply_forecasts(games: pd.DataFrame, days: int) -> pd.DataFrame:
     if need.any():
         print(f"  weather forecasts applied to {n_ok}/{int(need.sum())} upcoming outdoor games",
               file=sys.stderr)
+        HEALTH_STATS["weather"] = {"applied": int(n_ok), "needed": int(need.sum())}
     return games
 
 
@@ -1664,6 +1670,103 @@ def _utc(k):
     return t.tz_localize("UTC") if t.tzinfo is None else t
 
 
+PICK_REQUIRED = ("id", "type", "game_id", "kickoff", "status", "units", "edge")
+ALLPICK_REQUIRED = ("id", "game_id", "kickoff", "status")
+
+
+def _read_json_list(path):
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, list) else []
+    except Exception:
+        return []
+
+
+def load_log_file(path, required=PICK_REQUIRED, label="pick log"):
+    """Read a JSON list log. A missing file is an empty log. A file that is unreadable, or is not a list, STOPS the run
+    (the log is never overwritten from a broken read). Malformed entries are set aside in <log>_invalid.json."""
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception as e:
+        raise SystemExit(f"{label} {path} is not valid JSON ({e}). Not overwriting it. Fix the file, or copy the latest "
+                         f"copy from data/backups/ over it, then run again.")
+    if not isinstance(data, list):
+        raise SystemExit(f"{label} {path} should be a list of plays but is a {type(data).__name__}. Not overwriting it; "
+                         f"restore the latest copy from data/backups/.")
+    good, bad = [], []
+    for e in data:
+        ok = isinstance(e, dict) and all(e.get(k) is not None for k in required) and e.get("status") in ("pending", "graded")
+        (good if ok else bad).append(e)
+    if bad:
+        ip = path.replace(".json", "_invalid.json")
+        old = _read_json_list(ip)
+        with open(ip, "w") as f:
+            json.dump(old + bad, f, indent=1)
+        warn(f"{len(bad)} malformed entries in {path} were set aside in {ip}")
+        HEALTH_STATS.setdefault("log", {})["invalid"] = HEALTH_STATS.get("log", {}).get("invalid", 0) + len(bad)
+    return good
+
+
+def backup_log(path, keep_days=30, keep_min=5):
+    """Dated copy of a log in data/backups/ (one per day, overwritten by later runs the same day); old copies pruned."""
+    if not os.path.exists(path):
+        return None
+    d = os.path.join(os.path.dirname(path) or ".", "backups")
+    os.makedirs(d, exist_ok=True)
+    stem = os.path.splitext(os.path.basename(path))[0]
+    today = pd.Timestamp.now("UTC").strftime("%Y-%m-%d")
+    dst = os.path.join(d, f"{stem}_{today}.json")
+    with open(path, "rb") as a, open(dst, "wb") as b:
+        b.write(a.read())
+    names = sorted(n for n in os.listdir(d) if n.startswith(stem + "_") and re.fullmatch(r"\d{4}-\d{2}-\d{2}\.json", n[len(stem) + 1:]))
+    cutoff = (pd.Timestamp.now("UTC") - pd.Timedelta(days=keep_days)).strftime("%Y-%m-%d")
+    for n in names[:-keep_min]:
+        if n[len(stem) + 1:-5] < cutoff:
+            os.remove(os.path.join(d, n))
+    return dst
+
+
+def write_log_file(path, log):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(log, f, indent=1)
+    backup_log(path)
+
+
+def _play_key(e):
+    return (e.get("game_id"), "total" if e.get("type") == "total" else "side")
+
+
+def restore_from_backup(path, log):
+    """If the log is missing plays that the last run's backup had (for example, an old copy of the file was uploaded over
+    it), put those plays back. Deliberate removals made by the script itself are already in the backup, because it is
+    written at the end of every run; to remove a play by hand, delete it from the latest file in data/backups/ too."""
+    d = os.path.join(os.path.dirname(path) or ".", "backups")
+    stem = os.path.splitext(os.path.basename(path))[0]
+    if not os.path.isdir(d):
+        return log
+    names = sorted(n for n in os.listdir(d) if n.startswith(stem + "_") and re.fullmatch(r"\d{4}-\d{2}-\d{2}\.json", n[len(stem) + 1:]))
+    if not names:
+        return log
+    prev = _read_json_list(os.path.join(d, names[-1]))
+    have = {_play_key(e) for e in log}
+    miss = [e for e in prev if isinstance(e, dict) and e.get("game_id") is not None and _play_key(e) not in have
+            and e.get("status") in ("pending", "graded")]
+    if miss:
+        warn(f"{len(miss)} plays that were in the last backup ({names[-1]}) are missing from {path}; restored them "
+             f"(an older copy of the file may have been uploaded)")
+        st = HEALTH_STATS.setdefault("log", {})
+        st["restored"] = st.get("restored", 0) + len(miss)
+        log = log + miss
+    return log
+
+
 def dedupe_log(log, games=None):
     """One entry per official play. Older entries may lack season/week, so those are filled in from the schedule first;
     then the same game and bet kind can only be in the log once. When duplicates exist, keep the original live
@@ -1705,14 +1808,16 @@ def spread_only_backfill(path, allr, games, season, now):
     picked them from the model's pre-game predictions (graded at the final line). This deliberately overrides the
     usual lock: finished weeks are rebuilt once, marked replay/rebuilt, and then left alone. Whatever was in the log
     for those weeks is saved to <log>_replaced.json first. Unfinished weeks keep working live (spreads only)."""
-    log = dedupe_log(json.load(open(path)) if os.path.exists(path) else [], games)
+    log = load_log_file(path)
+    HEALTH_STATS.setdefault("log", {})["entries_start"] = len(log)
+    log = dedupe_log(restore_from_backup(path, log), games)
     wk_of = lambda e: (e.get("season"), e.get("week"))
     fills = [e for e in log if e.get("season") == season and e.get("type") != "total" and (e.get("edge") or 0) < EDGE_PLAY - 1e-9]
     if fills:                                                    # earlier versions filled short weeks with sub-threshold plays
         ids = {id(e) for e in fills}
         log = [e for e in log if id(e) not in ids]
         rp = path.replace(".json", "_replaced.json")
-        old = json.load(open(rp)) if os.path.exists(rp) else []
+        old = _read_json_list(rp)
         with open(rp, "w") as f:
             json.dump(old + fills, f, indent=1)
         print(f"  removed {len(fills)} filler plays (gap under {EDGE_PLAY}) from the log", file=sys.stderr)
@@ -1725,8 +1830,7 @@ def spread_only_backfill(path, allr, games, season, now):
             continue
         todo.append(w)
     if not todo:
-        with open(path, "w") as f:
-            json.dump(log, f, indent=1)
+        write_log_file(path, log)
         return
     replaced = [e for e in log if wk_of(e)[0] == season and wk_of(e)[1] in todo]
     log = [e for e in log if not (wk_of(e)[0] == season and wk_of(e)[1] in todo)]
@@ -1754,11 +1858,10 @@ def spread_only_backfill(path, allr, games, season, now):
         cand.sort(key=lambda e: -e["edge"])
         log += _clean(cand[:TOP_N])
     log.sort(key=lambda e: (e.get("season") or 0, e.get("week") or 0, e["kickoff"]))
-    with open(path, "w") as f:
-        json.dump(log, f, indent=1)
+    write_log_file(path, log)
     if replaced:
         rp = path.replace(".json", "_replaced.json")
-        old = json.load(open(rp)) if os.path.exists(rp) else []
+        old = _read_json_list(rp)
         with open(rp, "w") as f:
             json.dump(old + replaced, f, indent=1)
     print(f"  spread-only season: rebuilt weeks {todo}; {len(replaced)} earlier log entries saved to the _replaced file",
@@ -1768,7 +1871,7 @@ def spread_only_backfill(path, allr, games, season, now):
 def update_pick_log(path, league, cands, games, now):
     """Keep the log to the top TOP_N plays per week. Plays are added once, before kickoff, at the line when
     first posted, and never edited. Returns (live record dict, {play id: official-play details with rank})."""
-    log = dedupe_log(json.load(open(path)) if os.path.exists(path) else [], games)
+    log = dedupe_log(load_log_file(path), games)
     log = [e for e in log if not (e.get("status") == "pending" and (e.get("edge") or 0) < EDGE_PLAY)]   # no filler plays
     meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
 
@@ -1872,9 +1975,8 @@ def update_pick_log(path, league, cands, games, now):
             continue
         res, net = grade_pick(e, float(hp), float(ap))
         e.update(status="graded", home_pts=float(hp), away_pts=float(ap), result=res, net=round(net, 3))
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(log, f, indent=1)
+    write_log_file(path, log)
+    HEALTH_STATS.setdefault("log", {})["entries"] = len(log)
 
     done = sorted([e for e in log if e["status"] == "graded"], key=lambda e: e["kickoff"])
     pend = sorted([e for e in log if e["status"] == "pending"], key=lambda e: e["kickoff"])
@@ -1933,7 +2035,7 @@ def update_all_log(path, league, upcoming, games, now):
     """Live record of EVERY game's model pick (straight up, spread side, over/under side), not just the official
     top plays. A game is logged once, within LOCK_DAYS of kickoff and before it starts, at the line then posted,
     and never edited. Spread/total picks are flat 1u at -110. Returns {su, spread, total, pending, since}."""
-    log = json.load(open(path)) if os.path.exists(path) else []
+    log = load_log_file(path, ALLPICK_REQUIRED, "all-picks log")
     have = {e["id"] for e in log}
     for u in upcoming:
         if not _before_kickoff(u["kickoff"], now) or _utc(u["kickoff"]) - now > pd.Timedelta(days=LOCK_DAYS):
@@ -1966,9 +2068,7 @@ def update_all_log(path, league, upcoming, games, now):
         else:
             res, _ = grade_pick(e, hp, ap)
         e.update(status="graded", home_pts=hp, away_pts=ap, result=res)
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(log, f, indent=1)
+    write_log_file(path, log)
 
     def sub(t):
         return rec([e["result"] for e in log if e["type"] == t and e["status"] == "graded"], None)
@@ -2213,22 +2313,12 @@ OPTA_STATUS = {"out": 1.0, "doubtful": 0.75, "questionable": 0.25}
 OPTA_CAP = 3.0          # max points one team can lose from offensive injuries, or give up from defensive ones
 
 
-def load_opta():
-    """Opta/The Analyst player ratings JSON: the live feed if reachable, else data/opta_ratings.json (pasted weekly)."""
-    j = None
-    try:
-        r = requests.get(OPTA_URL, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}, timeout=30)
-        r.raise_for_status()
-        j = r.json()
-        print("  Opta ratings: live feed", file=sys.stderr)
-    except Exception as e:
-        try:
-            with open(OPTA_FILE, encoding="utf-8") as fh:
-                j = json.load(fh)
-            print(f"  Opta ratings: {OPTA_FILE} (live feed unavailable: {e})", file=sys.stderr)
-        except Exception:
-            warn("Opta ratings unavailable (no live feed, no data/opta_ratings.json); injury impact is not scaled by player quality")
-            return {}
+OPTA_MAX_AGE_DAYS = 10     # ratings older than this are ignored, not trusted
+OPTA_WARN_AGE_DAYS = 5
+
+
+def _opta_index(j):
+    """Opta feed JSON -> {(team, normalized name): rating info}."""
     idx = {}
     for side in ("offense", "defense"):
         for p in j.get(side) or []:
@@ -2258,6 +2348,62 @@ def load_opta():
     return idx
 
 
+def _opta_age_days(j, now=None):
+    """Age of a ratings JSON in days from its own lastUpdated stamp; None when it carries no usable date."""
+    try:
+        stamp = j.get("lastUpdated")
+        if not stamp:
+            return None
+        t = pd.Timestamp(stamp)
+        if pd.isna(t):
+            return None
+        t = t.tz_localize("UTC") if t.tzinfo is None else t
+        now = pd.Timestamp.now("UTC") if now is None else now
+        return max(0.0, (now - t).total_seconds() / 86400)
+    except Exception:
+        return None
+
+
+def load_opta(now=None):
+    """Opta/The Analyst player ratings: the live feed if reachable and fresh, else data/opta_ratings.json (pasted weekly).
+    A source older than OPTA_MAX_AGE_DAYS is ignored. What happened is recorded in HEALTH_STATS['opta']."""
+    meta = {"source": "none", "age_days": None, "updated": None, "ignored": False, "players": 0, "note": None}
+    HEALTH_STATS["opta"] = meta
+    tried = []
+    for source in ("live", "file"):
+        try:
+            if source == "live":
+                r = requests.get(OPTA_URL, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}, timeout=30)
+                r.raise_for_status()
+                j = r.json()
+            else:
+                with open(OPTA_FILE, encoding="utf-8") as fh:
+                    j = json.load(fh)
+        except Exception as e:
+            tried.append(f"{source}: {str(e)[:80]}")
+            continue
+        age = _opta_age_days(j, now)
+        meta.update(source=source, age_days=None if age is None else round(age, 1), updated=j.get("lastUpdated"))
+        if age is not None and age > OPTA_MAX_AGE_DAYS:
+            tried.append(f"{source}: ratings are {age:.0f} days old")
+            meta["ignored"] = True
+            continue
+        idx = _opta_index(j)
+        if not idx:
+            tried.append(f"{source}: no usable players")
+            continue
+        meta.update(ignored=False, players=len(idx))
+        if age is None:
+            meta["note"] = "the ratings file has no lastUpdated date, so its age is unknown"
+        print(f"  Opta ratings: {source} ({len(idx)} players, {'age unknown' if age is None else f'{age:.1f} days old'})", file=sys.stderr)
+        return idx
+    if not meta["ignored"]:
+        meta["source"] = "none"
+    meta["note"] = "; ".join(tried)
+    warn(f"Opta ratings not used ({meta['note']}); injury impact is not scaled by player quality")
+    return {}
+
+
 def opta_team_adj(team, rep, idx):
     """-> {"off": pts lost, "def": pts conceded, "players": [...]} from this team's ESPN injured starters."""
     out = {"off": 0.0, "def": 0.0, "players": []}
@@ -2275,12 +2421,28 @@ def opta_team_adj(team, rep, idx):
     return out
 
 
+OPTA_POS = {"OT", "OG", "C", "OL", "T", "G", "LT", "RT", "LG", "RG", "WR", "TE", "RB", "FB", "DE", "DT", "DL", "NT",
+            "LB", "OLB", "ILB", "MLB", "CB", "S", "SS", "FS", "DB", "EDGE"}
+
+
 def apply_opta(sub, espn, sigma):
     """Shift each upcoming game's scores for the quality of injured starters. Returns (sub, {team: adj})."""
     idx = load_opta()
     if not idx or not espn:
         return sub, {}
     adj = {t: opta_team_adj(t, espn.get(t), idx) for t in set(sub.home) | set(sub.away)}
+    cand = matched = 0                       # how many injured non-QB starters we could find in the ratings
+    missed = []
+    for t in adj:
+        for p in (espn.get(t) or {}).get("out", []):
+            if p.get("starter") is False or str(p.get("pos", "")).upper() not in OPTA_POS:
+                continue
+            cand += 1
+            if (t, norm_name(p["name"])) in idx:
+                matched += 1
+            else:
+                missed.append(f"{p['name']} ({t})")
+    HEALTH_STATS["opta"].update(injured_candidates=cand, injured_matched=matched, unmatched=missed[:8])
     sub = sub.copy()
     for i, r in sub.iterrows():
         h, a = adj[r.home], adj[r.away]
@@ -2290,6 +2452,92 @@ def apply_opta(sub, espn, sigma):
         sub.loc[i, "home_win_prob"] = norm.cdf((ph - pa) / sigma)
         sub.loc[i, "opta_shift"] = (ph - pa) - r.pred_margin
     return sub, adj
+
+
+def build_health(upcoming, games, now=None):
+    """Data checks for the site: {"level": ok|info|warn|error, "checks": [{name, level, detail}], "messages": [...]}.
+    The site shows a banner for warn/error. Everything here is about whether the INPUTS look right."""
+    now = pd.Timestamp.now("UTC") if now is None else now
+    checks = []
+
+    def add(name, level, detail):
+        checks.append({"name": name, "level": level, "detail": detail})
+    in_season = now.month in (9, 10, 11, 12, 1)
+    n = len(upcoming)
+    if n == 0:
+        add("Upcoming games", "warn" if in_season else "info", "No upcoming games were found in the schedule window.")
+    else:
+        add("Upcoming games", "ok", f"{n} games in the window.")
+        lines = sum(1 for u in upcoming if u.get("vegas_spread") is not None and not pd.isna(u.get("vegas_spread")))
+        if lines == 0:
+            add("Betting lines", "error", f"No spreads are available for any of the {n} upcoming games.")
+        elif lines < 0.8 * n:
+            add("Betting lines", "warn", f"Only {lines} of {n} upcoming games have a spread.")
+        else:
+            add("Betting lines", "ok", f"{lines} of {n} upcoming games have a spread.")
+        bad = [u for u in upcoming if not all(np.isfinite(float(u.get(k) if u.get(k) is not None else np.nan))
+                                              for k in ("pred_margin", "pred_total"))
+               or abs(float(u["pred_margin"])) > 30 or not 20 <= float(u["pred_total"]) <= 80]
+        add("Prediction sanity", "error" if bad else "ok",
+            f"{len(bad)} predictions are missing or outside a plausible range." if bad else "All predictions are in a plausible range.")
+    played = games[games.home_pts.notna() & games.away_pts.notna()]
+    if len(played):
+        last = pd.Timestamp(played.date.max())
+        last = last.tz_localize("UTC") if last.tzinfo is None else last
+        gap = (now - last).days
+        add("Latest results", "warn" if in_season and gap > 10 else "ok",
+            f"The most recent final score in the data is from {last:%b %d} ({gap} days ago)."
+            + (" Results may be missing." if in_season and gap > 10 else ""))
+    esp = HEALTH_STATS.get("espn")
+    if esp is None:
+        add("ESPN injuries and depth charts", "info", "Not requested in this run.")
+    elif not esp.get("ok"):
+        add("ESPN injuries and depth charts", "warn", "ESPN's feed was unreachable; the expected-QB and injury panels use older data.")
+    elif esp.get("depth_teams", 0) < 28:
+        add("ESPN injuries and depth charts", "warn", f"Depth charts loaded for only {esp.get('depth_teams')} of {esp.get('teams')} teams.")
+    else:
+        add("ESPN injuries and depth charts", "ok", f"{esp['injured']} injured players; depth charts for {esp['depth_teams']} teams.")
+    wx = HEALTH_STATS.get("weather")
+    if wx:
+        if wx["needed"] and wx["applied"] == 0:
+            add("Weather forecasts", "warn", "No forecasts could be loaded; games use typical weather for the stadium.")
+        elif wx["applied"] < wx["needed"]:
+            add("Weather forecasts", "info", f"Forecasts for {wx['applied']} of {wx['needed']} outdoor games; the rest use typical weather.")
+        else:
+            add("Weather forecasts", "ok", f"Forecasts loaded for {wx['applied']} outdoor games.")
+    op = HEALTH_STATS.get("opta")
+    if op is None:
+        add("Opta player ratings", "info", "Not loaded in this run.")
+    elif op["source"] == "none" or op.get("ignored"):
+        add("Opta player ratings", "warn", "Injury impact is NOT scaled by player quality. " + (op.get("note") or ""))
+    else:
+        age = op.get("age_days")
+        agetxt = "age unknown" if age is None else f"{age:g} days old"
+        lvl = "ok"
+        detail = f"{op['players']} players from the {op['source']} source, {agetxt}."
+        if age is None:
+            lvl, detail = "info", detail + " The file has no date; save it again from the feed to include one."
+        elif age > OPTA_WARN_AGE_DAYS:
+            lvl, detail = "warn", detail + f" Ratings are ignored after {OPTA_MAX_AGE_DAYS} days; refresh the file."
+        cand = op.get("injured_candidates", 0)
+        if cand >= 10 and op.get("injured_matched", 0) < 0.6 * cand:
+            lvl = "warn"
+            detail += f" Only {op['injured_matched']} of {cand} injured starters matched a rating (e.g. {', '.join(op.get('unmatched', [])[:3])})."
+        add("Opta player ratings", lvl, detail)
+    lg_ = HEALTH_STATS.get("log", {})
+    if lg_.get("restored") or lg_.get("invalid"):
+        bits = []
+        if lg_.get("restored"):
+            bits.append(f"{lg_['restored']} plays were restored from the last backup (an older copy of the pick log may have been uploaded)")
+        if lg_.get("invalid"):
+            bits.append(f"{lg_['invalid']} malformed entries were set aside")
+        add("Pick log", "warn", "; ".join(bits) + ".")
+    else:
+        add("Pick log", "ok", f"{lg_.get('entries', 'n/a')} plays; a dated backup was saved.")
+    order = {"ok": 0, "info": 1, "warn": 2, "error": 3}
+    level = max((c["level"] for c in checks), key=lambda x: order[x], default="ok")
+    return {"level": level, "checks": checks, "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "messages": [f"{c['name']}: {c['detail']}" for c in checks if c["level"] in ("warn", "error")]}
 
 
 def cmd_export(args):
@@ -2418,6 +2666,9 @@ def cmd_export(args):
         "model": {"kind": args.model, "groups": ["base"] + inc, "sigma": model.sigma},
         "games": upcoming, "recent": recent, "backtest": by_season, "backtest_record": bt2, "backtest_ytd": bt_ytd, "backtest_seasons": seasons2, "live": live, "calibration": hist_calibration(allr, games), "stats_season": stats_season, "stats_pool": pool_n,
         "rules": {"edge_play": EDGE_PLAY, "edge_strong": EDGE_STRONG, "top_n": TOP_N}})
+    payload["health"] = build_health(upcoming, games)
+    for m in payload["health"]["messages"]:
+        print(f"  [health] {m}", file=sys.stderr)
     out = args.out or f"data/{lg.name}.json"
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w") as f:
