@@ -1664,12 +1664,31 @@ def _utc(k):
     return t.tz_localize("UTC") if t.tzinfo is None else t
 
 
+def dedupe_log(log):
+    """One entry per official play: the same game and bet kind can only be in the log once. When duplicates exist
+    (same id, or the same game/side logged twice), keep the original live entry over a replay, graded over pending."""
+    def key(e):
+        kind = "total" if e.get("type") == "total" else "side"
+        return (e.get("season"), e.get("week"), e.get("home"), e.get("away"), kind)
+    rank = lambda e: (bool(e.get("replay")), e.get("status") != "graded", str(e.get("logged_at") or ""))
+    best = {}
+    for e in log:
+        k = key(e)
+        if k not in best or rank(e) < rank(best[k]):
+            best[k] = e
+    keep = {id(e) for e in best.values()}
+    out = [e for e in log if id(e) in keep]
+    if len(out) != len(log):
+        print(f"  removed {len(log) - len(out)} duplicate plays from the log", file=sys.stderr)
+    return out
+
+
 def spread_only_backfill(path, allr, games, season, now):
     """This season's official plays are the top TOP_N SPREAD plays of every finished week, as the rules would have
     picked them from the model's pre-game predictions (graded at the final line). This deliberately overrides the
     usual lock: finished weeks are rebuilt once, marked replay/rebuilt, and then left alone. Whatever was in the log
     for those weeks is saved to <log>_replaced.json first. Unfinished weeks keep working live (spreads only)."""
-    log = json.load(open(path)) if os.path.exists(path) else []
+    log = dedupe_log(json.load(open(path)) if os.path.exists(path) else [])
     wk_of = lambda e: (e.get("season"), e.get("week"))
     done_weeks = sorted(int(w) for w, g in games[games.season == season].groupby("week")
                         if g.home_pts.notna().all() and g.away_pts.notna().all())
@@ -1680,6 +1699,8 @@ def spread_only_backfill(path, allr, games, season, now):
             continue
         todo.append(w)
     if not todo:
+        with open(path, "w") as f:
+            json.dump(log, f, indent=1)
         return
     replaced = [e for e in log if wk_of(e)[0] == season and wk_of(e)[1] in todo]
     log = [e for e in log if not (wk_of(e)[0] == season and wk_of(e)[1] in todo)]
@@ -1721,7 +1742,7 @@ def spread_only_backfill(path, allr, games, season, now):
 def update_pick_log(path, league, cands, games, now):
     """Keep the log to the top TOP_N plays per week. Plays are added once, before kickoff, at the line when
     first posted, and never edited. Returns (live record dict, {play id: official-play details with rank})."""
-    log = json.load(open(path)) if os.path.exists(path) else []
+    log = dedupe_log(json.load(open(path)) if os.path.exists(path) else [])
     meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
 
     def wk(e):
