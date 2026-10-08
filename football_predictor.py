@@ -1655,51 +1655,56 @@ def _utc(k):
 
 
 def spread_only_backfill(path, allr, games, season, now):
-    """The official top plays are spread plays only. Total plays already in this season's log are removed, and any
-    finished week left short of TOP_N is topped up with the plays the rules would have made on spreads (marked
-    replay, built from the model's pre-game predictions and graded at the final line)."""
-    if not os.path.exists(path):
+    """This season's official plays are the top TOP_N SPREAD plays of every finished week, as the rules would have
+    picked them from the model's pre-game predictions (graded at the final line). This deliberately overrides the
+    usual lock: finished weeks are rebuilt once, marked replay/rebuilt, and then left alone. Whatever was in the log
+    for those weeks is saved to <log>_replaced.json first. Unfinished weeks keep working live (spreads only)."""
+    log = json.load(open(path)) if os.path.exists(path) else []
+    wk_of = lambda e: (e.get("season"), e.get("week"))
+    done_weeks = sorted(int(w) for w, g in games[games.season == season].groupby("week")
+                        if g.home_pts.notna().all() and g.away_pts.notna().all())
+    todo = []
+    for w in done_weeks:
+        es = [e for e in log if wk_of(e) == (season, w)]
+        if es and all(e.get("rebuilt") for e in es):
+            continue
+        todo.append(w)
+    if not todo:
         return
-    log = json.load(open(path))
-    is_gone = lambda e: e.get("type") == "total" and e.get("season") == season     # past seasons keep their totals
-    gone = [e for e in log if is_gone(e)]
-    if not gone:
-        return
-    log = [e for e in log if not is_gone(e)]
-    meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
-    weeks = {(e["season"], e["week"]) for e in gone if e.get("season") is not None}
-    for (sn, w) in sorted(weeks):
-        g_w = games[(games.season == sn) & (games.week == w)]
-        if g_w.empty or not (g_w.home_pts.notna().all() and g_w.away_pts.notna().all()):
-            continue                                              # unfinished weeks refill live
-        have = [e for e in log if (e.get("season"), e.get("week")) == (sn, w)]
-        used = {e["game_id"] for e in have}
-        d = allr[(allr.season == sn) & allr.mkt_spread.notna()]
+    replaced = [e for e in log if wk_of(e)[0] == season and wk_of(e)[1] in todo]
+    log = [e for e in log if not (wk_of(e)[0] == season and wk_of(e)[1] in todo)]
+    for w in todo:
+        d = allr[(allr.season == season) & allr.mkt_spread.notna()]
         d = d[games.loc[d.index, "week"] == w]
         cand = []
         for idx, r in d.iterrows():
             g = games.loc[idx]
-            if _gid(g.game_id) in used:
-                continue
             p = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
                            r.mkt_ml_home, r.mkt_ml_away)["spread_play"]
             if not p:
                 continue
             e = {"id": f"{_gid(g.game_id)}|spread", "type": p.get("kind") or "spread", "ml": p.get("ml"),
-                 "game_id": _gid(g.game_id), "league": "nfl", "season": int(sn), "week": int(w), "kickoff": _kickoff(g),
+                 "game_id": _gid(g.game_id), "league": "nfl", "season": int(season), "week": int(w), "kickoff": _kickoff(g),
                  "away": g.away, "home": g.home, "team": p.get("team"), "side": p.get("side"), "line": p["line"],
                  "edge": p["edge"], "units": p["units"], "pred_away": r.pred_away, "pred_home": r.pred_home,
-                 "status": "graded", "replay": True, "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "status": "graded", "replay": True, "rebuilt": True,
+                 "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
                  "home_pts": float(g.home_pts), "away_pts": float(g.away_pts)}
             e["result"], net = grade_pick(e, e["home_pts"], e["away_pts"])
             e["net"] = round(net, 3)
             cand.append(e)
         cand.sort(key=lambda e: -e["edge"])
-        log += _clean(cand[:max(TOP_N - len(have), 0)])
+        log += _clean(cand[:TOP_N])
     log.sort(key=lambda e: (e.get("season") or 0, e.get("week") or 0, e["kickoff"]))
     with open(path, "w") as f:
         json.dump(log, f, indent=1)
-    print(f"  spread-only: removed {len(gone)} total plays from the log and topped up finished weeks", file=sys.stderr)
+    if replaced:
+        rp = path.replace(".json", "_replaced.json")
+        old = json.load(open(rp)) if os.path.exists(rp) else []
+        with open(rp, "w") as f:
+            json.dump(old + replaced, f, indent=1)
+    print(f"  spread-only season: rebuilt weeks {todo}; {len(replaced)} earlier log entries saved to the _replaced file",
+          file=sys.stderr)
 
 
 def update_pick_log(path, league, cands, games, now):
