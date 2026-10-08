@@ -1707,6 +1707,15 @@ def spread_only_backfill(path, allr, games, season, now):
     for those weeks is saved to <log>_replaced.json first. Unfinished weeks keep working live (spreads only)."""
     log = dedupe_log(json.load(open(path)) if os.path.exists(path) else [], games)
     wk_of = lambda e: (e.get("season"), e.get("week"))
+    fills = [e for e in log if e.get("season") == season and e.get("type") != "total" and (e.get("edge") or 0) < EDGE_PLAY - 1e-9]
+    if fills:                                                    # earlier versions filled short weeks with sub-threshold plays
+        ids = {id(e) for e in fills}
+        log = [e for e in log if id(e) not in ids]
+        rp = path.replace(".json", "_replaced.json")
+        old = json.load(open(rp)) if os.path.exists(rp) else []
+        with open(rp, "w") as f:
+            json.dump(old + fills, f, indent=1)
+        print(f"  removed {len(fills)} filler plays (gap under {EDGE_PLAY}) from the log", file=sys.stderr)
     done_weeks = sorted(int(w) for w, g in games[games.season == season].groupby("week")
                         if g.home_pts.notna().all() and g.away_pts.notna().all())
     todo = []
