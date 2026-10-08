@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kickoff Labs: Sharp Betting Plays</title>
-<meta name="description" content="Sharp Betting Plays: every NFL play where the model sees a 3+ point edge, each week, graded in public with a live record and a backtest.">
+<meta name="description" content="Sharp Betting Plays: the model's top five NFL plays each week, graded in public with a live record and a backtest.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -149,7 +149,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
   <div id="v-main">
     <section id="live">
       <h1>Season record</h1>
-      <p class="lead">Each week every spread play where the model's number differs from the Vegas line by 3 or more points is an official play this season (the backtest of past seasons also includes over/under plays). Only plays with a gap of 3 or more points qualify, so a week can have fewer than five. For this season's finished weeks, the plays shown are all the spread plays the model would have made going into each week, built after the fact from its pre-game predictions at the final lines, so they replace the plays first logged live. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
+      <p class="lead">Each week the model's five highest-rated spread plays are the only official plays this season (the backtest of past seasons also includes over/under plays). Only plays with a gap of 3 or more points qualify, so a week can have fewer than five. For this season's finished weeks, the plays shown are the top five spread plays the model would have made going into each week, built after the fact from its pre-game predictions at the final lines, so they replace the plays first logged live. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
@@ -160,9 +160,9 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
     </section>
 
     <section id="plays">
-      <div class="hero"><div><div class="eyebrow">OFFICIAL PLAYS</div><h1>This week's plays</h1></div><p class="lead">Every game where the model sees a 3+ point gap from the Vegas line, locked before kickoff and graded in public.</p></div>
+      <div class="hero"><div><div class="eyebrow">OFFICIAL PLAYS</div><h1>This week's plays</h1></div><p class="lead">The model's five biggest gaps from the Vegas line, locked before kickoff and graded in public.</p></div>
       <div class="stats" id="pstats"></div>
-      <p class="note">Each week every spread play where the model differs from the Vegas line by 3 or more points is an official play (over/under plays are not official this season): 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. A play and its side lock when it qualifies, within about three days of its kickoff. A week can have more or fewer than five plays. Each play's line then follows the market until its game kicks off. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
+      <p class="note">Each week the five spread plays where the model differs most from the Vegas line are the official plays (over/under plays are not official this season): 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. The five plays and their sides lock about three days before the week's first kickoff. Each play's line then follows the market until its game kicks off. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
 
@@ -195,7 +195,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
 
   <div id="v-bt" hidden>
     <a class="back" href="#plays">← Back to official plays</a>
-    <h1>Backtest: every play with a 3+ point gap</h1>
+    <h1>Backtest: top 5 picks each week</h1>
     <p class="lead" id="btlead"></p>
 
     <section id="backtest-past">
@@ -307,7 +307,7 @@ function histNote(x) {
 }
 function playCard(x) {
   const g = x.g, p = x.p, spread = x.type !== "total";
-  return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} · ${p.units}u</span> ${x.type === "ml" ? "Moneyline" : spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
+  return `<article class="play"><div class="hd"><span><span class="badge">Official play #${p.rank} of ${p.of || 5} · ${p.units}u</span> ${x.type === "ml" ? "Moneyline" : spread ? "Spread" : "Total"}</span><span>${esc(dayOf(g.kickoff))}${timeOf(g.kickoff) ? " · " + timeOf(g.kickoff) : ""}</span></div>
     <div class="pick">${spread ? esc(spreadTxt(p)) : `${p.side} ${tr(p.line)}`}</div><div class="mu">${esc(g.away)} @ ${esc(g.home)}${g.neutral ? " (neutral)" : ""}</div>
     <div class="facts"><span>Vegas line: <b>${esc(favText(g))} · O/U ${g.vegas_total != null ? tr(g.vegas_total) : "n/a"}</b></span><span>Model gap: <b>${tr(p.edge)} pts</b></span>
     ${p.prob != null ? `<span>Simulator prediction: <b>${pct(p.prob)}</b></span>` : ""}<span>Model score: <b>${Math.round(g.pred_away)}–${Math.round(g.pred_home)}</b></span>${g.ml_value ? `<span>ML value: <b>${esc(g.ml_value)}</b></span>` : ""}${wx(g)}</div><details class="more"><summary>Matchup details</summary>${matchupPanel(g)}</details></article>`;
@@ -327,7 +327,7 @@ function gameRow(g, i) {
 function gameStats(a, ats, su) {
   if (!a || !a.su || !a.spread) return "";
   const one = (v, label) => { const n = v.w + v.l; return `<div class="stat"><b>${n ? pct1(v.win_pct) : "—"}</b><span>${label}${n ? `<br>${recTxt(v)}` : ""}</span></div>`; };
-  return (ats ? one(ats, "Against the spread, official plays only") : one(a.spread, "Against the spread, every game")) + (su ? one(su, "Straight up, games with an official play") : one(a.su, "Straight up, every game"));
+  return (ats ? one(ats, "Against the spread, top 5 picks only") : one(a.spread, "Against the spread, every game")) + (su ? one(su, "Straight up, games with a top 5 pick") : one(a.su, "Straight up, every game"));
 }
 function gameTable(a, ss) {
   if (!a || !a.by_season) return "";
@@ -342,11 +342,11 @@ function allPicks(lv, ytd) {
   const lw = lv.last_week;
   const cell = v => { if (!v) return "—"; const n = v.w + v.l; return n ? `${recTxt(v)} <small>${pct1(v.win_pct)} · ${units(v.units)}</small>` : "—"; };
   const hasMl = k => (lw && lw.record[k] && lw.record[k].w + lw.record[k].l + lw.record[k].p) || (ytd && ytd.overall && ytd.overall[k] && ytd.overall[k].w + ytd.overall[k].l + ytd.overall[k].p);
-  const rows = [["All official plays", "all"], ["Against the spread", "spread"], ...(hasMl("ml") ? [["Moneyline (spread within 2)", "ml"]] : []), ...(hasMl("total") ? [["Over / under", "total"]] : [])], o = ytd && ytd.overall;
-  return `<h3>Official Plays</h3>
+  const rows = [["All top 5 picks", "all"], ["Against the spread", "spread"], ...(hasMl("ml") ? [["Moneyline (spread within 2)", "ml"]] : []), ...(hasMl("total") ? [["Over / under", "total"]] : [])], o = ytd && ytd.overall;
+  return `<h3>Top 5 Picks</h3>
     <div class="scroll"><table><thead><tr><th>Pick type</th><th>Last week${lw ? ` (Week ${lw.week})` : ""}</th>${o ? `<th>${ytd.season} season so far</th>` : ""}</tr></thead>
     <tbody>${rows.map(([n, k]) => `<tr><td>${n}</td><td>${cell(lw && lw.record[k])}</td>${o ? `<td>${cell(o[k])}</td>` : ""}</tr>`).join("")}</tbody></table></div>
-    <p class="note">Every spread play the model rates at a 3+ point gap. ${lw ? `Last week is the record of the official plays from Week ${lw.week}, posted before kickoff. ` : "Last week's record appears once a full week of games has finished. "}${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
+    <p class="note">The model's five highest-rated spread plays each week. ${lw ? `Last week is the record of the official plays from Week ${lw.week}, posted before kickoff. ` : "Last week's record appears once a full week of games has finished. "}${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
 }
 const gSeason = g => { const t = new Date(g.kickoff); return t.getUTCMonth() >= 2 ? t.getUTCFullYear() : t.getUTCFullYear() - 1; };
 function dedupePicks(arr) {   // one row per game and bet kind, whatever the data file holds
@@ -462,7 +462,7 @@ function render() {
   const lwk = d.live && d.live.last_week;
   if (lwk) for (let i = plays.length - 1; i >= 0; i--) if (gSeason(plays[i].g) === lwk.season && plays[i].g.week <= lwk.week) plays.splice(i, 1);
   plays.sort((a, b) => a.g.week - b.g.week || a.p.rank - b.p.rank || b.p.edge - a.p.edge);
-  $("playlist").innerHTML = plays.length ? plays.map((x, i) => (i === 0 || plays[i - 1].g.week !== x.g.week ? `<h3>Week ${x.g.week}: official plays</h3>` : "") + playCard(x)).join("") : `<div class="empty">${hasLines ? "No official plays are locked yet. This week's plays lock within about three days of each kickoff; until then every game shows the model's side in the table below." : "Vegas lines aren't available for this league yet."}</div>`;
+  $("playlist").innerHTML = plays.length ? plays.map((x, i) => (i === 0 || plays[i - 1].g.week !== x.g.week ? `<h3>Week ${x.g.week}: top ${x.p.of || 5} plays</h3>` : "") + playCard(x)).join("") : `<div class="empty">${hasLines ? "No official plays are locked yet. This week's top five lock about three days before the first kickoff; until then every game shows the model's side in the table below." : "Vegas lines aren't available for this league yet."}</div>`;
 
   $("archlist").innerHTML = archiveBlock(d.live && d.live.archive);
   GAMES = d.games; renderGames();
@@ -471,10 +471,10 @@ function render() {
   const ids = ["bstats","bchart","btable"];
   if (b && b.overall.all.w + b.overall.all.l > 0) {
     const yrs = ss.length > 1 ? `${ss[0]} to ${ss[ss.length - 1]}` : ss[0];
-    $("btlead").textContent = `Every play where the model differs from the Vegas line by 3 or more points is an official play. This page shows what that rule would have done in past seasons. Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is not the live record, which only counts picks logged before kickoff.`;
+    $("btlead").textContent = `Each week, the model's five biggest gaps from the Vegas line are the official plays. This page shows what that rule would have done in past seasons. Each season was predicted by a model trained only on earlier seasons, and every game was predicted before it was played. This is not the live record, which only counts picks logged before kickoff.`;
     $("pasthead").textContent = `Past ${ss.length} seasons (${yrs})`;
-    $("bstats").innerHTML = stats(b.overall.all, `Every 3+ point play, ${yrs}`); $("bstats").innerHTML += gameStats(d.live && d.live.all_bt && d.live.all_bt.past, b.overall.spread, b.overall.su); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss) + gameTable(d.live && d.live.all_bt, ss);
-    $("btnote").textContent = `Roughly 70 plays a season is a small sample, so even a few seasons is not much, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds for spreads and totals (1 unit = 1% of a bankroll); moneyline plays, used when the spread is within 2 points, are paid at the posted moneyline. Spreads and totals are graded at the line in the free data.`;
+    $("bstats").innerHTML = stats(b.overall.all, `Top 5 each week, ${yrs}`); $("bstats").innerHTML += gameStats(d.live && d.live.all_bt && d.live.all_bt.past, b.overall.spread, b.overall.su); $("bchart").innerHTML = chart(b.series); $("btable").innerHTML = btTable(b, ss) + gameTable(d.live && d.live.all_bt, ss);
+    $("btnote").textContent = `Five picks a week is about 85 a season, so even a few seasons is a small sample, and results swing from year to year; the first weeks of a season are especially noisy. The 95% range shows how much luck can matter. Units assume −110 odds for spreads and totals (1 unit = 1% of a bankroll); moneyline plays, used when the spread is within 2 points, are paid at the posted moneyline. Spreads and totals are graded at the line in the free data.`;
   } else { $("btlead").textContent = "No backtest is available for this league yet (it needs historical betting lines)."; ids.forEach(i => $(i).innerHTML = ""); $("btnote").textContent = ""; }
 }
 function route() {
