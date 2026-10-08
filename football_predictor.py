@@ -1656,7 +1656,7 @@ def grade_pick(e, hp, ap):
 
 
 PICK_TYPES = ("spread",)   # this season's official top plays are spread plays only (backtests of past seasons still include totals) (near pick'ems are played on the moneyline)
-TOP_N, LOCK_DAYS = 5, 3   # official plays per week; a week's plays lock this many days before its first kickoff
+TOP_N, LOCK_DAYS = 99, 3   # official plays per week; a week's plays lock this many days before its first kickoff
 
 
 def _utc(k):
@@ -1697,7 +1697,7 @@ def dedupe_log(log, games=None):
     return out
 
 
-REBUILD_VERSION = 2   # bump to rebuild this season's finished weeks again
+REBUILD_VERSION = 3   # bump to rebuild this season's finished weeks again
 
 
 def spread_only_backfill(path, allr, games, season, now):
