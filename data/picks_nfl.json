@@ -187,13 +187,15 @@
   "home": "NYJ",
   "team": "CLE",
   "side": null,
-  "line": 2.5,
+  "line": 1.5,
   "edge": 6.362,
   "units": 1.5,
   "pred_away": 22.768,
   "pred_home": 18.906,
   "status": "pending",
-  "logged_at": "2026-10-06T11:05:38Z"
+  "logged_at": "2026-10-06T11:05:38Z",
+  "line_first": 2.5,
+  "line_updated_at": "2026-10-08T00:02:18Z"
  },
  {
   "id": "2026_05_PHI_JAX|total",
