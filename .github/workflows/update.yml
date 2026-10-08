@@ -35,7 +35,11 @@ jobs:
           key: data-${{ github.run_id }}
           restore-keys: data-
       - name: Automated checks (grading, top-5 rule, duplicates, pick-log safety, Opta freshness)
-        run: python -m unittest discover -s . -p "test_*.py" -v
+        run: |
+          FILES=$(find . -name "test_*.py" -not -path "./.git/*" -not -path "./data_cache/*" -not -path "./_site/*")
+          if [ -z "$FILES" ]; then echo "::error::test_football.py not found in the repo - upload it (main folder or tests/)"; exit 1; fi
+          echo "Running: $FILES"
+          PYTHONPATH=. python -m unittest -v $FILES
       - name: NFL predictions
         run: python football_predictor.py export --league nfl --out _site/data/nfl.json
       - name: Data health report
