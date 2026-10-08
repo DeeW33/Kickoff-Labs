@@ -149,7 +149,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
   <div id="v-main">
     <section id="live">
       <h1>Season record</h1>
-      <p class="lead">Each week the model's five highest-rated spread plays are the only official plays. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
+      <p class="lead">Each week the model's five highest-rated spread plays are the only official plays this season (the backtest of past seasons also includes over/under plays). Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
@@ -162,7 +162,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
     <section id="plays">
       <div class="hero"><div><div class="eyebrow">OFFICIAL PLAYS</div><h1>This week's plays</h1></div><p class="lead">The model's five biggest gaps from the Vegas line, locked before kickoff and graded in public.</p></div>
       <div class="stats" id="pstats"></div>
-      <p class="note">Each week the five spread plays where the model differs most from the Vegas line are the official plays (totals are not official plays): 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. The five plays and their sides lock about three days before the week's first kickoff. Each play's line then follows the market until its game kicks off. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
+      <p class="note">Each week the five spread plays where the model differs most from the Vegas line are the official plays (over/under plays are not official this season): 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. The five plays and their sides lock about three days before the week's first kickoff. Each play's line then follows the market until its game kicks off. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
 
