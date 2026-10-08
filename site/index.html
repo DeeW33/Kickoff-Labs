@@ -349,18 +349,32 @@ function allPicks(lv, ytd) {
     <p class="note">The model's five highest-rated spread plays each week. ${lw ? `Last week is the record of the official plays from Week ${lw.week}, posted before kickoff. ` : "Last week's record appears once a full week of games has finished. "}${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
 }
 const gSeason = g => { const t = new Date(g.kickoff); return t.getUTCMonth() >= 2 ? t.getUTCFullYear() : t.getUTCFullYear() - 1; };
+function dedupePicks(arr) {   // one row per game and bet kind, whatever the data file holds
+  const best = new Map();
+  for (const e of arr || []) {
+    const k = [e.season, e.week, e.home, e.away, e.type === "total" ? "t" : "s"].join("|"), b = best.get(k);
+    const rank = x => (x.replay ? 2 : 0) + (x.status === "graded" ? 0 : 1);
+    if (!b || rank(e) < rank(b)) best.set(k, e);
+  }
+  const keep = new Set(best.values());
+  return (arr || []).filter(e => keep.has(e));
+}
+function recOf(es) {
+  const g = es.filter(e => e.status === "graded"), w = g.filter(e => e.result === 1).length, l = g.filter(e => e.result === -1).length;
+  return {w, l, p: g.length - w - l, win_pct: w + l ? w / (w + l) : null, units: g.reduce((s, e) => s + (e.net || 0), 0)};
+}
 function lastWeekBlock(lw) {
   if (!lw || !lw.picks || !lw.picks.length) return "";
   const r = lw.record.all;
   return `<h3>Last week's top plays (Week ${lw.week})</h3>
     <p class="note">${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}. Final results for the official plays of the week that just ended.</p>
-    <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lw.picks.map(liveRow).join("")}</tbody></table></div>`;
+    <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${dedupePicks(lw.picks).map(liveRow).join("")}</tbody></table></div>`;
 }
 function archiveBlock(ar) {
   if (!ar || !ar.length) return `<div class="empty">Finished weeks will appear here once a full week of games is complete.</div>`;
-  return ar.map(w => { const r = w.record;
+  return ar.map(w => { const ps = dedupePicks(w.picks), r = ps.length === w.picks.length ? w.record : recOf(ps);
     return `<details class="more"><summary>${w.season} · Week ${w.week}${w.replay ? " (what-if)" : ""} <small>${recTxt(r)}${r.w + r.l ? ` · ${pct1(r.win_pct)}` : ""} · ${units(r.units)}</small></summary>
-      <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${w.picks.map(liveRow).join("")}</tbody></table></div></details>`; }).join("");
+      <div class="scroll"><table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${ps.map(liveRow).join("")}</tbody></table></div></details>`; }).join("");
 }
 function liveRow(e) {
   const done = e.status === "graded", cls = e.result === 1 ? "pos" : e.result === -1 ? "neg" : "";
@@ -440,7 +454,7 @@ function render() {
       `Tracking is on. ${lv.pending} plays are logged and waiting for their games; results and the chart appear as games finish. Nothing is backfilled into this record.`;
     $("pstats").innerHTML = $("lstats").innerHTML;
     $("lall").innerHTML = allPicks(lv, d.backtest_ytd);
-    $("ltable").innerHTML = lv.picks.length ? `<table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${lv.picks.map(liveRow).join("")}</tbody></table>` : `<div class="empty">No plays logged yet.</div>`;
+    $("ltable").innerHTML = lv.picks.length ? `<table><thead><tr><th>Game</th><th>Pick</th><th>Stake</th><th>Result</th></tr></thead><tbody>${dedupePicks(lv.picks).map(liveRow).join("")}</tbody></table>` : `<div class="empty">No plays logged yet.</div>`;
   } else { $("pstats").innerHTML = ""; $("lstats").innerHTML = $("lchart").innerHTML = $("ltable").innerHTML = $("lall").innerHTML = ""; $("lnote").textContent = "Betting lines aren't available for this league yet, so there are no official plays to track."; }
 
   const plays = [];
