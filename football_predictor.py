@@ -1292,6 +1292,40 @@ def prepare(args, forecast_days=None):
     return lg, games, ctx
 
 
+EPAR_K, EPAR_REG, EPAR_PLAYS = 0.12, 0.6, 65.0     # update speed, offseason carry-over, plays per game (EPA -> points)
+EPAR_COLS = [f"{sd}_epar_{k}" for sd in ("home", "away") for k in ("off", "def")] + ["epar_diff", "epar_total"]
+
+
+def epar_features(games):
+    """Opponent-adjusted EPA power rating, updated game by game (pre-game values only, so no leakage).
+    A team's offense is rated by how much more EPA/play it gets than expected from the defense it faced, and its
+    defense likewise. Expressed in points per game."""
+    g = games.sort_values("date", kind="stable")
+    off, dfn, season, out, n, sm = {}, {}, {}, {}, 0, 0.0
+    for i, x in g.iterrows():
+        for t in (x.home, x.away):
+            if season.get(t) != x.season:
+                if t in season:
+                    off[t] *= EPAR_REG
+                    dfn[t] *= EPAR_REG
+                else:
+                    off[t] = dfn[t] = 0.0
+                season[t] = x.season
+        mu = sm / n if n else 0.0
+        oh, dh, oa, da = off[x.home], dfn[x.home], off[x.away], dfn[x.away]
+        P = EPAR_PLAYS
+        out[i] = (oh * P, dh * P, oa * P, da * P, ((oh - dh) - (oa - da)) * P, (oh + oa + dh + da) * P)
+        if pd.notna(x.h_epa) and pd.notna(x.a_epa):          # learn only from games already played
+            eh, ea = x.h_epa - (mu + oh + da), x.a_epa - (mu + oa + dh)
+            off[x.home] += EPAR_K * eh
+            dfn[x.away] += EPAR_K * eh
+            off[x.away] += EPAR_K * ea
+            dfn[x.home] += EPAR_K * ea
+            sm += x.h_epa + x.a_epa
+            n += 2
+    return pd.DataFrame.from_dict(out, orient="index", columns=EPAR_COLS)
+
+
 def featurize(lg, games, ctx, talent_elo=True):
     groups = set()
     if games[["h_epa", "a_epa"]].notna().any().any():
@@ -1310,6 +1344,9 @@ def featurize(lg, games, ctx, talent_elo=True):
         gc["advanced"] = ADV_COLS
     if "adjusted" in groups:
         gc["adjusted"] = ADJ_COLS
+    if "advanced" in groups:
+        feats = feats.join(epar_features(games))
+        gc["epar"] = EPAR_COLS
     if "turnovers" in groups:
         gc["turnovers"] = TOV_COLS
     if "qb" in groups:
