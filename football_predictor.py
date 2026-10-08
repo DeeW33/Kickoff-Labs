@@ -1567,6 +1567,16 @@ def make_picks(home, away, pred_margin, pred_total, v_spread, v_total, ml_home=N
     return out
 
 
+def fill_play(sim):
+    """A spread play from the model's side of a game whose gap is under EDGE_PLAY, used only to fill a week to TOP_N."""
+    if not sim:
+        return None
+    p = {"team": sim["team"], "line": sim["line"], "edge": sim["edge"], "units": 1.0, "fill": True}
+    if sim.get("ml") is not None:
+        p.update(ml=sim["ml"], kind="ml")
+    return p
+
+
 def rec(res, units=None, pay=None):
     res = np.asarray(res, float)
     u = np.ones(len(res)) if units is None else np.asarray(units, float)
@@ -1679,8 +1689,9 @@ def spread_only_backfill(path, allr, games, season, now):
         cand = []
         for idx, r in d.iterrows():
             g = games.loc[idx]
-            p = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
-                           r.mkt_ml_home, r.mkt_ml_away)["spread_play"]
+            pk = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
+                            r.mkt_ml_home, r.mkt_ml_away)
+            p = pk["spread_play"] or fill_play(pk["sim_spread"])
             if not p:
                 continue
             e = {"id": f"{_gid(g.game_id)}|spread", "type": p.get("kind") or "spread", "ml": p.get("ml"),
@@ -1744,7 +1755,7 @@ def update_pick_log(path, league, cands, games, now):
         if _utc(min(u["kickoff"] for u in us)) - now > pd.Timedelta(days=LOCK_DAYS) or cnt[k] >= TOP_N:
             continue
         pool = [(p["edge"], typ, u, p) for u in us if _before_kickoff(u["kickoff"], now)
-                for typ in PICK_TYPES for p in [u.get(f"{typ}_play")]
+                for typ in PICK_TYPES for p in [u.get(f"{typ}_play") or (fill_play(u.get("sim_spread")) if typ == "spread" else None)]
                 if p and f"{u['game_id']}|{typ}" not in have]
         pool.sort(key=lambda x: -x[0])
         for edge, typ, u, p in pool[:TOP_N - cnt[k]]:
@@ -1938,8 +1949,9 @@ def play_frame(allr, games, spreads_only=False):
     d = allr[allr.mkt_spread.notna()].copy()
     d["date"] = games.loc[d.index, "date"]
     d["week"] = games.loc[d.index, "week"]
+    d["su"] = np.sign(d.pred_margin) * np.sign(d.actual_margin)      # did the model's predicted winner win outright
     es = d.pred_margin - d.mkt_spread
-    sp = d[es.abs() >= EDGE_PLAY].copy()
+    sp = d[es.abs() >= (0.0 if spreads_only else EDGE_PLAY)].copy()     # spreads-only weeks are filled to TOP_N
     sp["edge"] = es[sp.index].abs()
     sp["type"] = "spread"
     sp["res"] = np.where(es[sp.index] > 0, 1, -1) * np.sign(sp.actual_margin - sp.mkt_spread)
@@ -1962,7 +1974,7 @@ def play_frame(allr, games, spreads_only=False):
     tp["res"] = np.where(et[tp.index] > 0, 1, -1) * np.sign(tp.actual_total - tp.mkt_total)
     tp["units"] = np.where(et[tp.index].abs() >= EDGE_STRONG, 1.5, 1.0)
     tp["pay"] = WIN_UNITS
-    cols = ["date", "season", "week", "type", "res", "units", "edge", "pay"]
+    cols = ["date", "season", "week", "type", "res", "units", "edge", "pay", "su"]
     out = pd.concat([sp[cols]] if spreads_only else [sp[cols], tp[cols]])
     out = out.sort_values("edge", ascending=False).groupby(["season", "week"]).head(TOP_N).sort_values("date")
     out["net"] = out.units * np.where(out.res == 1, out.pay, np.where(out.res == -1, -1.0, 0.0))
@@ -2027,8 +2039,9 @@ def hist_calibration(allr, games):
 def backtest_block(pf):
     def three(g):
         r = lambda x: rec(x.res, x.units, x.pay)
+        gu = g[~g.index.duplicated()]                      # straight up: once per game among the top plays
         return {"all": r(g), "spread": r(g[g.type == "spread"]), "ml": r(g[g.type == "ml"]),
-                "total": r(g[g.type == "total"])}
+                "total": r(g[g.type == "total"]), "su": rec(gu.su, np.ones(len(gu)))}
     ser = pf.groupby(pf.date.dt.strftime("%Y-%m-%d")).net.sum().cumsum()
     return {"overall": three(pf), "by_season": {str(int(k)): three(g) for k, g in pf.groupby("season")},
             "series": [[k, round(float(v), 2)] for k, v in ser.items()]}
@@ -2305,7 +2318,7 @@ def cmd_export(args):
             pk = make_picks(r.home, r.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total, r.mkt_ml_home, r.mkt_ml_away)
             cands.append({"game_id": _gid(r.game_id), "season": int(r.season), "week": int(r.week),
                           "kickoff": _kickoff(r), "away": r.away, "home": r.home, "pred_away": r.pred_away,
-                          "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"],
+                          "pred_home": r.pred_home, "spread_play": pk["spread_play"], "total_play": pk["total_play"], "sim_spread": pk["sim_spread"],
                           "mkt_spread": r.mkt_spread, "mkt_total": r.mkt_total,
                           "mkt_ml_home": r.mkt_ml_home, "mkt_ml_away": r.mkt_ml_away})
     spread_only_backfill(args.log or f"data/picks_{lg.name}.json", allr, games, current_season(), now)
