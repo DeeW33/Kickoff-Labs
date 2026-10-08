@@ -1,0 +1,130 @@
+[
+ {
+  "home": "DAL",
+  "away": "TB",
+  "favorite": "DAL",
+  "spread": 9.5,
+  "total": 48.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "JAX",
+  "away": "PHI",
+  "favorite": "JAX",
+  "spread": 7.5,
+  "total": 41.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "PHI",
+  "away": "JAX",
+  "favorite": "JAX",
+  "spread": 7.5,
+  "total": 41.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "GB",
+  "away": "CHI",
+  "favorite": "CHI",
+  "spread": 1.5,
+  "total": 45.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "TEN",
+  "away": "HOU",
+  "favorite": "HOU",
+  "spread": 7.5,
+  "total": 38.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "MIA",
+  "away": "CIN",
+  "favorite": "CIN",
+  "spread": 7,
+  "total": 42.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "NE",
+  "away": "LV",
+  "favorite": "NE",
+  "spread": 3.5,
+  "total": 45.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "NO",
+  "away": "MIN",
+  "favorite": "MIN",
+  "spread": 2.5,
+  "total": 41.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "NYJ",
+  "away": "CLE",
+  "favorite": "NYJ",
+  "spread": 2.5,
+  "total": 39.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "PIT",
+  "away": "IND",
+  "favorite": "PIT",
+  "spread": 2.5,
+  "total": 44.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "WAS",
+  "away": "NYG",
+  "favorite": "WAS",
+  "spread": 3.5,
+  "total": 41.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "LAC",
+  "away": "DEN",
+  "favorite": "DEN",
+  "spread": 3.5,
+  "total": 41.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "ARI",
+  "away": "DET",
+  "favorite": "DET",
+  "spread": 5.5,
+  "total": 54.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "SEA",
+  "away": "SF",
+  "favorite": "SEA",
+  "spread": 3,
+  "total": 45.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "ATL",
+  "away": "BAL",
+  "favorite": "ATL",
+  "spread": 3,
+  "total": 43.5,
+  "source": "DraftKings, Oct 8 2026"
+ },
+ {
+  "home": "LA",
+  "away": "BUF",
+  "favorite": "LA",
+  "spread": 3,
+  "total": 54.5,
+  "source": "DraftKings, Oct 8 2026"
+ }
+]
