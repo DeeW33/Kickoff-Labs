@@ -1697,6 +1697,9 @@ def dedupe_log(log, games=None):
     return out
 
 
+REBUILD_VERSION = 2   # bump to rebuild this season's finished weeks again
+
+
 def spread_only_backfill(path, allr, games, season, now):
     """This season's official plays are the top TOP_N SPREAD plays of every finished week, as the rules would have
     picked them from the model's pre-game predictions (graded at the final line). This deliberately overrides the
@@ -1709,7 +1712,7 @@ def spread_only_backfill(path, allr, games, season, now):
     todo = []
     for w in done_weeks:
         es = [e for e in log if wk_of(e) == (season, w)]
-        if es and all(e.get("rebuilt") for e in es):
+        if es and all(e.get("rebuilt") == REBUILD_VERSION for e in es):
             continue
         todo.append(w)
     if not todo:
@@ -1726,14 +1729,14 @@ def spread_only_backfill(path, allr, games, season, now):
             g = games.loc[idx]
             pk = make_picks(g.home, g.away, r.pred_margin, r.pred_total, r.mkt_spread, r.mkt_total,
                             r.mkt_ml_home, r.mkt_ml_away)
-            p = pk["spread_play"] or fill_play(pk["sim_spread"])
+            p = pk["spread_play"]
             if not p:
                 continue
             e = {"id": f"{_gid(g.game_id)}|spread", "type": p.get("kind") or "spread", "ml": p.get("ml"),
                  "game_id": _gid(g.game_id), "league": "nfl", "season": int(season), "week": int(w), "kickoff": _kickoff(g),
                  "away": g.away, "home": g.home, "team": p.get("team"), "side": p.get("side"), "line": p["line"],
                  "edge": p["edge"], "units": p["units"], "pred_away": r.pred_away, "pred_home": r.pred_home,
-                 "status": "graded", "replay": True, "rebuilt": True,
+                 "status": "graded", "replay": True, "rebuilt": REBUILD_VERSION,
                  "logged_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
                  "home_pts": float(g.home_pts), "away_pts": float(g.away_pts)}
             e["result"], net = grade_pick(e, e["home_pts"], e["away_pts"])
@@ -1757,6 +1760,7 @@ def update_pick_log(path, league, cands, games, now):
     """Keep the log to the top TOP_N plays per week. Plays are added once, before kickoff, at the line when
     first posted, and never edited. Returns (live record dict, {play id: official-play details with rank})."""
     log = dedupe_log(json.load(open(path)) if os.path.exists(path) else [], games)
+    log = [e for e in log if not (e.get("status") == "pending" and (e.get("edge") or 0) < EDGE_PLAY)]   # no filler plays
     meta = games.assign(_g=games.game_id.map(_gid)).drop_duplicates("_g").set_index("_g")
 
     def wk(e):
@@ -1790,7 +1794,7 @@ def update_pick_log(path, league, cands, games, now):
         if _utc(min(u["kickoff"] for u in us)) - now > pd.Timedelta(days=LOCK_DAYS) or cnt[k] >= TOP_N:
             continue
         pool = [(p["edge"], typ, u, p) for u in us if _before_kickoff(u["kickoff"], now)
-                for typ in PICK_TYPES for p in [u.get(f"{typ}_play") or (fill_play(u.get("sim_spread")) if typ == "spread" else None)]
+                for typ in PICK_TYPES for p in [u.get(f"{typ}_play")]
                 if p and f"{u['game_id']}|{typ}" not in have]
         pool.sort(key=lambda x: -x[0])
         for edge, typ, u, p in pool[:TOP_N - cnt[k]]:
@@ -1986,7 +1990,7 @@ def play_frame(allr, games, spreads_only=False):
     d["week"] = games.loc[d.index, "week"]
     d["su"] = np.sign(d.pred_margin) * np.sign(d.actual_margin)      # did the model's predicted winner win outright
     es = d.pred_margin - d.mkt_spread
-    sp = d[es.abs() >= (0.0 if spreads_only else EDGE_PLAY)].copy()     # spreads-only weeks are filled to TOP_N
+    sp = d[es.abs() >= EDGE_PLAY].copy()
     sp["edge"] = es[sp.index].abs()
     sp["type"] = "spread"
     sp["res"] = np.where(es[sp.index] > 0, 1, -1) * np.sign(sp.actual_margin - sp.mkt_spread)
