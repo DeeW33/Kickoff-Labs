@@ -149,7 +149,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
   <div id="v-main">
     <section id="live">
       <h1>Season record</h1>
-      <p class="lead">Each week the model's five highest-rated plays are the only official plays. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
+      <p class="lead">Each week the model's five highest-rated spread plays are the only official plays. Each play's side is fixed when it is logged before kickoff, then graded after the game. The line on a pending play follows the market until kickoff and then freezes, and the play is graded at that final line. Every change is saved in this site's public repository history (data/picks_nfl.json). Occasional manual corrections are in data/line_overrides.json.</p>
       <div class="stats" id="lstats"></div>
       <div class="chartbox" id="lchart"></div>
       <p class="note" id="lnote"></p>
@@ -162,7 +162,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
     <section id="plays">
       <div class="hero"><div><div class="eyebrow">OFFICIAL PLAYS</div><h1>This week's plays</h1></div><p class="lead">The model's five biggest gaps from the Vegas line, locked before kickoff and graded in public.</p></div>
       <div class="stats" id="pstats"></div>
-      <p class="note">Each week the five plays where the model differs most from the Vegas line are the official plays: 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. The five plays and their sides lock about three days before the week's first kickoff. Each play's line then follows the market until its game kicks off. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
+      <p class="note">Each week the five spread plays where the model differs most from the Vegas line are the official plays (totals are not official plays): 1.5 units when the gap is 4+ points, 1 unit for 3 to 4. The five plays and their sides lock about three days before the week's first kickoff. Each play's line then follows the market until its game kicks off. When the Vegas spread is within 2 points either way, the play is a moneyline pick on the side the model likes, paid at the posted moneyline. Every other game still shows the model's side below, but isn't an official play. Lines move, so check the current number before you bet.</p>
       <div class="plays" id="playlist"></div>
     </section>
 
@@ -292,8 +292,13 @@ function matchupPanel(g) {
     ["Injury load", c => c.inj ? (Object.entries(c.inj).filter(([, v]) => v > 0).map(([k, v]) => `${k.toUpperCase()} ${tr(v)}`).join(", ") || "None listed") : null]];
   let ctx = `<tr class="grp"><td colspan="3">Context</td></tr>`;
   for (const [label, f] of ctxRows) { const x = f(a), y = f(h); if (x != null || y != null) ctx += `<tr><td>${label}</td><td>${x ?? "—"}</td><td>${y ?? "—"}</td></tr>`; }
+  if (g.opta) {
+    const oc = o => !o ? null : (o.players.length ? o.players.map(p => `${esc(p.name)} <small>${esc(p.pos)} · ${esc(p.status)} · rated ${p.rating}${p.pts >= 0.05 ? ` · −${p.pts.toFixed(1)} pts` : ""}</small>`).join(", ") + `<small>net ${(o.off + o.def).toFixed(1)} pts</small>` : "None rated");
+    const x = oc(g.opta.away), y = oc(g.opta.home);
+    if (x != null || y != null) ctx += `<tr><td>Injured starters by quality</td><td>${x ?? "—"}</td><td>${y ?? "—"}</td></tr>`;
+  }
   return keyEdges(g) + `<table class="cmp"><thead><tr><th>Matchup</th><th>${esc(g.away)}</th><th>${esc(g.home)}</th></tr></thead><tbody>${ctx}${rows}</tbody></table>
-    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. Key edges compare a team's offensive rank against the other side's defensive rank (percentile = share of teams it beats). EPA is expected points added per play. Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Early-season numbers come from very few games.</p>`;
+    <p class="note">${D[L].stats_season} season to date. Small grey numbers are league rank (1st is best, out of ${D[L].stats_pool} teams); green marks the better side. Key edges compare a team's offensive rank against the other side's defensive rank (percentile = share of teams it beats). EPA is expected points added per play. Player lists come from ESPN's injury report and depth charts (starter = first on the depth chart at that spot). Injury load counts Out as 1, Doubtful .75, Questionable .25. Quality ratings come from Opta (The Analyst) player ratings: the score projection is adjusted by how good each injured starter is (up to about 0.6 points for a top-rated lineman or pass rusher; average players count for nothing). Early-season numbers come from very few games.</p>`;
 }
 function histNote(x) {
   const c = D[L] && D[L].calibration; if (!c) return "";
@@ -337,11 +342,11 @@ function allPicks(lv, ytd) {
   const lw = lv.last_week;
   const cell = v => { if (!v) return "—"; const n = v.w + v.l; return n ? `${recTxt(v)} <small>${pct1(v.win_pct)} · ${units(v.units)}</small>` : "—"; };
   const hasMl = k => (lw && lw.record[k] && lw.record[k].w + lw.record[k].l + lw.record[k].p) || (ytd && ytd.overall && ytd.overall[k] && ytd.overall[k].w + ytd.overall[k].l + ytd.overall[k].p);
-  const rows = [["All top 5 picks", "all"], ["Against the spread", "spread"], ...(hasMl("ml") ? [["Moneyline (spread within 2)", "ml"]] : []), ["Over / under", "total"]], o = ytd && ytd.overall;
+  const rows = [["All top 5 picks", "all"], ["Against the spread", "spread"], ...(hasMl("ml") ? [["Moneyline (spread within 2)", "ml"]] : []), ...(hasMl("total") ? [["Over / under", "total"]] : [])], o = ytd && ytd.overall;
   return `<h3>Top 5 Picks</h3>
     <div class="scroll"><table><thead><tr><th>Pick type</th><th>Last week${lw ? ` (Week ${lw.week})` : ""}</th>${o ? `<th>${ytd.season} season so far</th>` : ""}</tr></thead>
     <tbody>${rows.map(([n, k]) => `<tr><td>${n}</td><td>${cell(lw && lw.record[k])}</td>${o ? `<td>${cell(o[k])}</td>` : ""}</tr>`).join("")}</tbody></table></div>
-    <p class="note">The model's five highest-rated plays each week. ${lw ? `Last week is the record of the official plays from Week ${lw.week}, posted before kickoff. ` : "Last week's record appears once a full week of games has finished. "}${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
+    <p class="note">The model's five highest-rated spread plays each week. ${lw ? `Last week is the record of the official plays from Week ${lw.week}, posted before kickoff. ` : "Last week's record appears once a full week of games has finished. "}${o ? `The season-so-far column replays this season's completed weeks with the same rules, using only earlier data for each game, so it can include weeks before live tracking began. ` : ""}Units are flat 1u at −110 (1.5u on the strongest plays).</p>`;
 }
 const gSeason = g => { const t = new Date(g.kickoff); return t.getUTCMonth() >= 2 ? t.getUTCFullYear() : t.getUTCFullYear() - 1; };
 function lastWeekBlock(lw) {
