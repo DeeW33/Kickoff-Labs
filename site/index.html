@@ -25,7 +25,7 @@ nav a.on{color:var(--go);font-weight:700}
 .tab:focus-visible,a:focus-visible{outline:3px solid var(--go);outline-offset:2px}
 .stamp{color:var(--mute);font-size:.85rem}
 .banner{border:1px solid var(--amber);border-left-width:5px;background:var(--panel);color:var(--ink);border-radius:10px;padding:.7rem 1rem;margin:.8rem 0;font-size:.92rem}
-.banner.bad{border-color:var(--bad)}.banner b{display:block;margin-bottom:.2rem}.banner ul{margin:.3rem 0 0 1.1rem;padding:0}
+.rg{max-width:68ch;padding-left:1.1rem}.rg li{margin:.35rem 0}.banner.bad{border-color:var(--bad)}.banner b{display:block;margin-bottom:.2rem}.banner ul{margin:.3rem 0 0 1.1rem;padding:0}
 .hl{list-style:none;margin:.6rem 0;padding:0;font-size:.9rem}.hl li{padding:.3rem 0;border-bottom:1px solid var(--line)}.hl i{font-style:normal;font-weight:700;margin-right:.4rem}
 .hl .ok i{color:var(--win)}.hl .warn i,.hl .info i{color:var(--amber)}.hl .error i{color:var(--bad)}
 h1{font:800 2.1rem/1.1 Georgia,serif;margin:.6rem 0 .4rem}h2{font:700 1.35rem/1.2 Georgia,serif;margin:2.4rem 0 .5rem}
@@ -195,6 +195,14 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
     <section id="about">
       <h2>About</h2>
       <p class="note">Kickoff Labs rates teams with an Elo system plus recent efficiency (EPA per play), quarterback quality, injuries and weather, then projects each game's score and compares it with the Vegas lines. The model is less accurate than the betting market overall, so its differences from Vegas are most likely noise. Treat them as ideas to examine, not sure things.</p>
+      <h3>Responsible gambling and disclaimers</h3>
+      <ul class="note rg">
+        <li><b>Entertainment and information only.</b> Kickoff Labs is a statistical project. It is not betting, financial or legal advice, and it does not take bets.</li>
+        <li><b>No guarantees.</b> Past results, including the backtest, do not predict future results. Over 11 seasons the model's spread plays won about 53% with a wide margin of error, and any bettor can lose money, including by following these plays. The lines can be wrong or out of date, so always check the current number.</li>
+        <li><b>Bet only what you can afford to lose</b>, and only if you are of legal age (21+ in most U.S. states) where sports betting is legal where you live. Never chase losses.</li>
+        <li><b>Need help?</b> Call 1-800-GAMBLER (1-800-426-2537), or visit <a href="https://www.ncpgambling.org">ncpgambling.org</a>.</li>
+        <li><b>Independent.</b> Kickoff Labs is not affiliated with or endorsed by the NFL, any team, DraftKings or any other sportsbook, ESPN or Opta. Names are used only to identify games and data sources.</li>
+      </ul>
       <h3>Data checks</h3>
       <p class="note">Run on every update. If an input looks wrong, a notice appears at the top of the site.</p>
       <ul class="hl" id="hchecks"></ul>
@@ -217,7 +225,7 @@ h3{font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:
   </div>
 
   <footer>
-    <p>For entertainment only. Not betting or financial advice. You must be 21+ (or the legal age where you live). Never bet money you can't afford to lose. Gambling problem? Call 1-800-GAMBLER. Past results do not guarantee future results.</p>
+    <p>For entertainment only. Not betting or financial advice. You must be 21+ (or the legal age where you live). Never bet money you can't afford to lose. Gambling problem? Call 1-800-GAMBLER. Past results do not guarantee future results. <a href="#about">More</a></p>
     <p>Vegas lines come from nflverse's weekly odds data and may lag the market. Data: <a href="https://github.com/nflverse">nflverse</a>, <a href="https://open-meteo.com">Open-Meteo</a>.</p>
   </footer>
 </main>
