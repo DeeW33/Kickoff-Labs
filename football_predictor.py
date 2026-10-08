@@ -126,7 +126,7 @@ ADJ_COLS = ([f"{sd}_adj{k}_{s}" for sd in ("home", "away") for k in ("off", "def
             + ["home_adj_pf", "home_adj_pa", "away_adj_pf", "away_adj_pa", "exp_adj_margin", "exp_adj_total"])
 TOV_COLS = ["home_tov_comm", "home_tov_forced", "away_tov_comm", "away_tov_forced", "tov_edge"]
 INJW_COLS = [f"{sd}_injw_{g}" for sd in ("home", "away") for g in INJ_GROUPS] + ["injw_total_diff"]
-NEW_GROUPS = ("adjusted", "turnovers", "injw")   # groups added in v3
+NEW_GROUPS = ("adjusted", "turnovers", "injw", "injq")   # groups added in v3
 MARKET_COLS = ["mkt_spread", "mkt_total"]
 
 GAME_COLS = ["date", "season", "week", "game_id", "gametime", "home", "away", "home_pts", "away_pts",
@@ -197,6 +197,8 @@ class Context:
         self.injw_counts = None   # same, but each injury weighted by the player's recent snap share
         self.snap_hist = None     # pfr_id -> (sorted season*100+week keys, snap shares)
         self.gsis2pfr = {}
+        self.pval_hist = None     # gsis_id -> (sorted keys, skill EPA/game, defensive production/game)
+        self.injq_counts = None   # injuries weighted by each player's recent PRODUCTION (quality)
         self.espn = {}            # team -> {"qb_depth": [names], "out": [players], "qb_out": bool} (live, NFL)
         self.qb_name_id = {}      # normalized QB name -> gsis id (from past starts)
         self.team_season = {}     # (season, team) -> dict(ret_ppa, ret_pass, portal_net, talent_z)
@@ -360,6 +362,58 @@ def snap_importance(ctx: Context, gsis, key):
     return float(shares[max(0, i - 4):i].mean()) if i else DEFAULT_IMPORTANCE
 
 
+PV_DEFAULT = {"skill": 0.2, "def": 0.3, "ol": 0.15}   # value assumed for a player with no history (rookie, backup)
+PV_GAMES, PV_SHRINK = 6, 3
+
+
+def load_nfl_pstats(ctx: Context, end: int):
+    """Weekly player stats -> each player's recent production, for quality-weighted injuries."""
+    want = ["player_id", "season", "week", "season_type", "position_group", "receiving_epa", "rushing_epa",
+            "def_sacks", "def_tackles_for_loss", "def_qb_hits", "def_interceptions", "def_pass_defended",
+            "def_tackles_solo", "def_fumbles_forced"]
+    frames = []
+    for yr in range(2009, end + 1):
+        def fetch(yr=yr):
+            raw = download(f"{NFLVERSE}/stats_player/stats_player_week_{yr}.csv")
+            if raw is None:
+                return None
+            return pd.read_csv(io.BytesIO(raw), usecols=lambda c: c in want, low_memory=False)
+        d = cached(f"nfl_pstat_{yr}.pkl", fetch, refresh=yr >= end)
+        if d is not None:
+            frames.append(d)
+    if not frames:
+        warn("no player stats downloaded; quality-weighted injuries disabled")
+        return
+    d = pd.concat(frames, ignore_index=True)
+    d = d[(d.season_type == "REG") & d.position_group.isin(["RB", "WR", "TE", "DL", "LB", "DB"])].copy()
+    for c in want[5:]:
+        d[c] = pd.to_numeric(d.get(c), errors="coerce").fillna(0.0)
+    d["skill"] = d.receiving_epa + d.rushing_epa
+    d["defv"] = (d.def_sacks + 0.5 * d.def_tackles_for_loss + 0.25 * d.def_qb_hits + d.def_interceptions
+                 + 0.3 * d.def_pass_defended + 0.1 * d.def_tackles_solo + 0.5 * d.def_fumbles_forced)
+    d["key"] = d.season.astype(int) * 100 + d.week.astype(int)
+    d = d.sort_values("key")
+    ctx.pval_hist = {pid: (g.key.to_numpy(), g.skill.to_numpy(), g.defv.to_numpy()) for pid, g in d.groupby("player_id")}
+
+
+def player_value(ctx: Context, gsis, grp, key):
+    """Quality of a player BEFORE the report week: recent per-game production (offensive EPA for skill players,
+    a defensive-play score for defenders) or snap share for linemen. Missed games are not counted."""
+    if grp == "ol":
+        return snap_importance(ctx, gsis, key) if ctx.snap_hist else PV_DEFAULT["ol"]
+    h = (ctx.pval_hist or {}).get(gsis)
+    if h is None:
+        return PV_DEFAULT[grp]
+    keys, sk, dv = h
+    i = int(np.searchsorted(keys, key, side="left"))
+    lo = max(0, i - PV_GAMES)
+    n = i - lo
+    if n == 0:
+        return PV_DEFAULT[grp]
+    x = float((sk if grp == "skill" else dv)[lo:i].mean())
+    return max(x, 0.0) * n / (n + PV_SHRINK)
+
+
 def load_nfl_injuries(ctx: Context, end: int):
     frames = []
     for yr in range(2009, end + 1):
@@ -401,6 +455,18 @@ def load_nfl_injuries(ctx: Context, end: int):
                 cw[g] = 0.0
         cw["season"], cw["week"] = cw.season.astype(int), cw.week.astype(int)
         ctx.injw_counts = cw
+    if ctx.pval_hist is not None:
+        dq = d[(d.season >= 2010) & d.grp.isin(["skill", "ol", "def"])].copy()
+        dq["val"] = [player_value(ctx, gs, g_, int(se) * 100 + int(wk))
+                     for gs, g_, se, wk in zip(dq.gsis_id, dq.grp, dq.season, dq.week)]
+        dq["wq"] = dq.w * dq.val
+        cq = (dq.pivot_table(index=["season", "week", "team"], columns="grp", values="wq",
+                             aggfunc="sum", fill_value=0.0).reset_index())
+        for g in INJ_GROUPS:
+            if g not in cq:
+                cq[g] = 0.0
+        cq["season"], cq["week"] = cq.season.astype(int), cq.week.astype(int)
+        ctx.injq_counts = cq
     for r in d[(d.grp == "qb") & (d.w >= 0.75)].itertuples(index=False):
         ctx.qb_out.setdefault((int(r.season), int(r.week), r.team), set()).add(r.gsis_id)
 
@@ -1064,6 +1130,24 @@ def injw_features(games: pd.DataFrame, inj: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+INJQ_COLS = [f"{sd}_injq_{g}" for sd in ("home", "away") for g in ("skill", "ol", "def")] + ["injq_total_diff"]
+
+
+def injq_features(games: pd.DataFrame, inj: pd.DataFrame) -> pd.DataFrame:
+    out = {}
+    cov = (games.season >= 2010).to_numpy()
+    for sd in ("home", "away"):
+        m = games[["season", "week", sd]].merge(
+            inj, how="left", left_on=["season", "week", sd], right_on=["season", "week", "team"])
+        for g in ("skill", "ol", "def"):
+            v = m[g].to_numpy(dtype=float)
+            out[f"{sd}_injq_{g}"] = np.where(cov, np.nan_to_num(v, nan=0.0), np.nan)
+    out = pd.DataFrame(out, index=games.index)
+    out["injq_total_diff"] = (out[[f"home_injq_{g}" for g in ("skill", "ol", "def")]].sum(axis=1, min_count=1)
+                              - out[[f"away_injq_{g}" for g in ("skill", "ol", "def")]].sum(axis=1, min_count=1))
+    return out
+
+
 def weather_features(games: pd.DataFrame):
     roof = games["roof"].astype("object")
     indoor = roof.isin(["dome", "closed"])
@@ -1183,8 +1267,11 @@ def prepare(args, forecast_days=None):
     if args.league == "nfl":
         games = load_nfl(start)
         games = load_nfl_pbp(games, ctx, start, end)
-        if "injw" in getattr(args, "with_set", set()):   # only needed when weighted injuries are enabled
+        ws_ = getattr(args, "with_set", set())
+        if "injw" in ws_ or "injq" in ws_:   # only needed when weighted / quality-weighted injuries are enabled
             load_nfl_snaps(ctx, end)
+        if "injq" in ws_:
+            load_nfl_pstats(ctx, end)
         load_nfl_injuries(ctx, end)
         nm = pd.concat([games[["home_qb_name", "home_qb_id"]].set_axis(["n", "i"], axis=1),
                         games[["away_qb_name", "away_qb_id"]].set_axis(["n", "i"], axis=1)]).dropna()
@@ -1235,6 +1322,9 @@ def featurize(lg, games, ctx, talent_elo=True):
     if ctx.injw_counts is not None:
         feats = feats.join(injw_features(games, ctx.injw_counts))
         gc["injw"] = INJW_COLS
+    if ctx.injq_counts is not None:
+        feats = feats.join(injq_features(games, ctx.injq_counts))
+        gc["injq"] = INJQ_COLS
     wx = weather_features(games)
     if wx is not None:
         feats = feats.join(wx)
@@ -1959,6 +2049,97 @@ def ml_info(r):
             "ml_value": (r.home if d >= 0.05 else r.away if d <= -0.05 else None)}
 
 
+
+# --------------------------------------------------------------------------- #
+# Opta player ratings (live only, not backtested): scale injury impact by who is actually hurt
+# --------------------------------------------------------------------------- #
+OPTA_URL = "https://theanalyst.com/wp-json/sdapi/v1/footballdata/playerelo?tmcl=7naonrhursiqrteihetgap6ac"
+OPTA_FILE = "data/opta_ratings.json"
+OPTA_ABBR = {"WSH": "WAS", "LAR": "LA", "JAX": "JAC", "LVR": "LV"}
+OPTA_PTS = {"OL": 0.6, "WR": 0.5, "TE": 0.3, "RB": 0.3, "EDGE": 0.6, "DT": 0.4, "CB": 0.5, "S": 0.3, "MLB": 0.3}
+OPTA_STATUS = {"out": 1.0, "doubtful": 0.75, "questionable": 0.25}
+OPTA_CAP = 3.0          # max points one team can lose from offensive injuries, or give up from defensive ones
+
+
+def load_opta():
+    """Opta/The Analyst player ratings JSON: the live feed if reachable, else data/opta_ratings.json (pasted weekly)."""
+    j = None
+    try:
+        r = requests.get(OPTA_URL, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}, timeout=30)
+        r.raise_for_status()
+        j = r.json()
+        print("  Opta ratings: live feed", file=sys.stderr)
+    except Exception as e:
+        try:
+            with open(OPTA_FILE, encoding="utf-8") as fh:
+                j = json.load(fh)
+            print(f"  Opta ratings: {OPTA_FILE} (live feed unavailable: {e})", file=sys.stderr)
+        except Exception:
+            warn("Opta ratings unavailable (no live feed, no data/opta_ratings.json); injury impact is not scaled by player quality")
+            return {}
+    idx = {}
+    for side in ("offense", "defense"):
+        for p in j.get(side) or []:
+            g = p.get("positionGroup")
+            if g not in OPTA_PTS:
+                continue
+            pr = lambda k: float(p.get(k) or 50)
+            if g == "OL":
+                v = 0.6 * pr("passBlockPctRank") + 0.4 * pr("runBlockPctRank")
+            elif g in ("WR", "TE", "RB"):
+                v = 0.5 * pr("routesPctRank") + 0.5 * pr("catchingPctRank")
+            elif g == "EDGE":
+                v = 0.7 * pr("passRushPctRank") + 0.3 * pr("runDefensePctRank")
+            elif g == "DT":
+                v = 0.5 * pr("passRushPctRank") + 0.5 * pr("runDefensePctRank")
+            elif g == "CB":
+                v = pr("coveragePctRank")
+            elif g == "S":
+                v = 0.7 * pr("coveragePctRank") + 0.3 * pr("runDefensePctRank")
+            else:
+                v = 0.5 * pr("runDefensePctRank") + 0.5 * pr("coveragePctRank")
+            team = OPTA_ABBR.get(p.get("teamAbbreviation"), p.get("teamAbbreviation"))
+            snaps = float(p.get("snaps") or 0)
+            val = max(0.0, (v - 50.0) / 50.0) * min(1.0, snaps / 150.0)    # above-average only; thin samples shrink
+            idx[(team, norm_name(p.get("player")))] = {"side": "off" if side == "offense" else "def", "group": g,
+                                                     "pct": round(v), "val": val, "snaps": snaps}
+    return idx
+
+
+def opta_team_adj(team, rep, idx):
+    """-> {"off": pts lost, "def": pts conceded, "players": [...]} from this team's ESPN injured starters."""
+    out = {"off": 0.0, "def": 0.0, "players": []}
+    for p in (rep or {}).get("out", []):
+        w = OPTA_STATUS.get(p["tier"], 0)
+        o = idx.get((team, norm_name(p["name"])))
+        if not o or not w or p.get("starter") is False:
+            continue
+        pts = w * o["val"] * OPTA_PTS[o["group"]]
+        out[o["side"]] += pts
+        out["players"].append({"name": p["name"], "pos": o["group"], "status": p["status"], "rating": o["pct"],
+                               "pts": round(pts, 2)})
+    out["off"], out["def"] = min(out["off"], OPTA_CAP), min(out["def"], OPTA_CAP)
+    out["players"].sort(key=lambda x: -x["pts"])
+    return out
+
+
+def apply_opta(sub, espn, sigma):
+    """Shift each upcoming game's scores for the quality of injured starters. Returns (sub, {team: adj})."""
+    idx = load_opta()
+    if not idx or not espn:
+        return sub, {}
+    adj = {t: opta_team_adj(t, espn.get(t), idx) for t in set(sub.home) | set(sub.away)}
+    sub = sub.copy()
+    for i, r in sub.iterrows():
+        h, a = adj[r.home], adj[r.away]
+        ph = r.pred_home - h["off"] + a["def"]
+        pa = r.pred_away - a["off"] + h["def"]
+        sub.loc[i, ["pred_home", "pred_away", "pred_margin", "pred_total"]] = [ph, pa, ph - pa, ph + pa]
+        sub.loc[i, "home_win_prob"] = norm.cdf((ph - pa) / sigma)
+        sub.loc[i, "opta_shift"] = (ph - pa) - r.pred_margin
+    return sub, adj
+
+
 def cmd_export(args):
     """Fit once, then write upcoming predictions + backtest + recent results as JSON for the website."""
     lg, games, ctx = prepare(args, forecast_days=args.days if args.league == "nfl" else None)
@@ -1977,9 +2158,13 @@ def cmd_export(args):
     stats_season = int(games.loc[played, "season"].max())
     ts, pool_n = team_stats(games, ctx, stats_season)
     qbn = last_qbs(games)
+    ctx.opta_adj = {}
     upcoming = []
     if up.any():
         sub = games.loc[up].join(model.predict(feats.loc[up, cols])).sort_values("date")
+        sub["opta_shift"] = 0.0
+        sub, opta_adj = apply_opta(sub, ctx.espn, model.sigma)
+        ctx.opta_adj = opta_adj
         for idx, r in sub.iterrows():
             f = feats.loc[idx]
             wx = None
@@ -1990,6 +2175,8 @@ def cmd_export(args):
                              "neutral": bool(r.neutral), "pred_away": r.pred_away, "pred_home": r.pred_home,
                              "pred_margin": r.pred_margin, "pred_total": r.pred_total,
                              "home_win_prob": r.home_win_prob, "weather": wx,
+                             "opta": {"home": ctx.opta_adj.get(r.home), "away": ctx.opta_adj.get(r.away),
+                                      "shift": round(float(r.opta_shift), 2)} if ctx.opta_adj else None,
                              "home_info": team_card("home", r.home, f, ts, qbn, ctx.espn), "away_info": team_card("away", r.away, f, ts, qbn, ctx.espn),
                              "vegas_spread": r.mkt_spread, "vegas_total": r.mkt_total,
                              "ml_home": r.mkt_ml_home, "ml_away": r.mkt_ml_away, **ml_info(r),
@@ -2094,10 +2281,10 @@ def main():
     ap.add_argument("--test-seasons", type=int, default=3)
     ap.add_argument("--warmup", type=int, default=None, help="Elo burn-in seasons excluded from training")
     ap.add_argument("--days", type=int, default=7, help="predict games in the next N days")
-    ap.add_argument("--drop", default="", help="comma list: advanced,qb,injuries,weather,roster")
+    ap.add_argument("--drop", default="injuries", help="comma list: advanced,qb,injuries,weather,roster (default drops the old injury counts; Opta ratings handle injuries)")
     ap.add_argument("--log", help="(export) pick log path, default data/picks_<league>.json")
     ap.add_argument("--out", help="(export) output JSON path, default data/<league>.json")
-    ap.add_argument("--with", dest="with_groups", default="", help="opt-in feature groups: adjusted,turnovers,injw")
+    ap.add_argument("--with", dest="with_groups", default="", help="opt-in feature groups: adjusted,turnovers,injw,injq")
     ap.add_argument("--use-market", action="store_true", help="(NFL) add Vegas spread/total as features")
     args = ap.parse_args()
     args.drop_set = {x.strip() for x in args.drop.split(",") if x.strip()}
