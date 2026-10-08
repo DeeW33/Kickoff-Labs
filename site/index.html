@@ -352,7 +352,7 @@ const gSeason = g => { const t = new Date(g.kickoff); return t.getUTCMonth() >= 
 function dedupePicks(arr) {   // one row per game and bet kind, whatever the data file holds
   const best = new Map();
   for (const e of arr || []) {
-    const k = [e.season, e.week, e.home, e.away, e.type === "total" ? "t" : "s"].join("|"), b = best.get(k);
+    const k = [e.game_id || [e.season, e.week, e.home, e.away].join("-"), e.type === "total" ? "t" : "s"].join("|"), b = best.get(k);
     const rank = x => (x.replay ? 2 : 0) + (x.status === "graded" ? 0 : 1);
     if (!b || rank(e) < rank(b)) best.set(k, e);
   }
