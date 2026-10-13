@@ -819,11 +819,14 @@
   "away": "BUF",
   "home": "LA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-10T11:04:04Z",
   "team": "BUF",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 34.0,
+  "away_pts": 37.0,
+  "result": 1
  },
  {
   "id": "2026_05_BUF_LA|spread",
@@ -834,11 +837,14 @@
   "away": "BUF",
   "home": "LA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-10T11:04:04Z",
   "team": "BUF",
   "line": 3.0,
-  "side": null
+  "side": null,
+  "home_pts": 34.0,
+  "away_pts": 37.0,
+  "result": 1
  },
  {
   "id": "2026_05_BUF_LA|total",
@@ -849,10 +855,58 @@
   "away": "BUF",
   "home": "LA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-10T11:04:04Z",
   "team": null,
   "line": 54.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 34.0,
+  "away_pts": 37.0,
+  "result": -1
+ },
+ {
+  "id": "2026_06_SEA_DEN|su",
+  "type": "su",
+  "game_id": "2026_06_SEA_DEN",
+  "league": "nfl",
+  "kickoff": "2026-10-16T00:15:00Z",
+  "away": "SEA",
+  "home": "DEN",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-13T11:09:15Z",
+  "team": "DEN",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_06_SEA_DEN|spread",
+  "type": "spread",
+  "game_id": "2026_06_SEA_DEN",
+  "league": "nfl",
+  "kickoff": "2026-10-16T00:15:00Z",
+  "away": "SEA",
+  "home": "DEN",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-13T11:09:15Z",
+  "team": "DEN",
+  "line": 3.0,
+  "side": null
+ },
+ {
+  "id": "2026_06_SEA_DEN|total",
+  "type": "total",
+  "game_id": "2026_06_SEA_DEN",
+  "league": "nfl",
+  "kickoff": "2026-10-16T00:15:00Z",
+  "away": "SEA",
+  "home": "DEN",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-13T11:09:15Z",
+  "team": null,
+  "line": 40.5,
+  "side": "Over"
  }
 ]
