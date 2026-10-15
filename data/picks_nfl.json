@@ -527,13 +527,15 @@
   "home": "ATL",
   "team": "ATL",
   "side": null,
-  "line": 3.0,
+  "line": 1.5,
   "edge": 5.465,
   "units": 1.5,
   "pred_away": 20.242,
   "pred_home": 22.706,
   "status": "pending",
-  "logged_at": "2026-10-13T11:09:15Z"
+  "logged_at": "2026-10-13T11:09:15Z",
+  "line_first": 3.0,
+  "line_updated_at": "2026-10-15T11:18:16Z"
  },
  {
   "id": "2026_06_SEA_DEN|spread",
@@ -603,7 +605,7 @@
  {
   "id": "2026_06_NO_NYG|spread",
   "type": "ml",
-  "ml": -102.0,
+  "ml": -108.0,
   "game_id": "2026_06_NO_NYG",
   "league": "nfl",
   "season": 2026,
@@ -621,6 +623,6 @@
   "status": "pending",
   "logged_at": "2026-10-13T11:09:15Z",
   "ml_first": -110.0,
-  "line_updated_at": "2026-10-14T11:18:41Z"
+  "line_updated_at": "2026-10-15T11:18:16Z"
  }
 ]
