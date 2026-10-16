@@ -555,10 +555,14 @@
   "units": 1.5,
   "pred_away": 20.559,
   "pred_home": 22.799,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-13T11:09:15Z",
   "line_first": 3.0,
-  "line_updated_at": "2026-10-14T11:18:41Z"
+  "line_updated_at": "2026-10-14T11:18:41Z",
+  "home_pts": 17.0,
+  "away_pts": 14.0,
+  "result": 1,
+  "net": 1.364
  },
  {
   "id": "2026_06_WAS_SF|spread",
