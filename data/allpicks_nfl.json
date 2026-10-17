@@ -1460,5 +1460,50 @@
   "team": null,
   "line": 45.5,
   "side": "Under"
+ },
+ {
+  "id": "2026_06_WAS_SF|su",
+  "type": "su",
+  "game_id": "2026_06_WAS_SF",
+  "league": "nfl",
+  "kickoff": "2026-10-20T00:15:00Z",
+  "away": "WAS",
+  "home": "SF",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-17T11:12:40Z",
+  "team": "SF",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_06_WAS_SF|spread",
+  "type": "spread",
+  "game_id": "2026_06_WAS_SF",
+  "league": "nfl",
+  "kickoff": "2026-10-20T00:15:00Z",
+  "away": "WAS",
+  "home": "SF",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-17T11:12:40Z",
+  "team": "SF",
+  "line": -7.5,
+  "side": null
+ },
+ {
+  "id": "2026_06_WAS_SF|total",
+  "type": "total",
+  "game_id": "2026_06_WAS_SF",
+  "league": "nfl",
+  "kickoff": "2026-10-20T00:15:00Z",
+  "away": "WAS",
+  "home": "SF",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-17T11:12:40Z",
+  "team": null,
+  "line": 52.5,
+  "side": "Under"
  }
 ]

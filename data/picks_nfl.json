@@ -609,7 +609,7 @@
  {
   "id": "2026_06_NO_NYG|spread",
   "type": "ml",
-  "ml": -108.0,
+  "ml": -110.0,
   "game_id": "2026_06_NO_NYG",
   "league": "nfl",
   "season": 2026,
@@ -627,6 +627,6 @@
   "status": "pending",
   "logged_at": "2026-10-13T11:09:15Z",
   "ml_first": -110.0,
-  "line_updated_at": "2026-10-15T11:18:16Z"
+  "line_updated_at": "2026-10-17T11:12:40Z"
  }
 ]
