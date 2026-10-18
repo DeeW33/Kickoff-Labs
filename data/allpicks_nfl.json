@@ -1505,5 +1505,21 @@
   "team": null,
   "line": 52.5,
   "side": "Under"
+ },
+ {
+  "id": "2026_06_PIT_TB|ml",
+  "type": "ml",
+  "game_id": "2026_06_PIT_TB",
+  "league": "nfl",
+  "kickoff": "2026-10-18T17:00:00Z",
+  "away": "PIT",
+  "home": "TB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-18T15:23:10Z",
+  "team": "PIT",
+  "line": null,
+  "side": null,
+  "ml": -130.0
  }
 ]
