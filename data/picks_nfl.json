@@ -532,10 +532,14 @@
   "units": 1.5,
   "pred_away": 20.242,
   "pred_home": 22.706,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-13T11:09:15Z",
   "line_first": 3.0,
-  "line_updated_at": "2026-10-15T11:18:16Z"
+  "line_updated_at": "2026-10-15T11:18:16Z",
+  "home_pts": 23.0,
+  "away_pts": 31.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_06_SEA_DEN|spread",
@@ -603,8 +607,12 @@
   "units": 1.0,
   "pred_away": 16.351,
   "pred_home": 27.669,
-  "status": "pending",
-  "logged_at": "2026-10-13T11:09:15Z"
+  "status": "graded",
+  "logged_at": "2026-10-13T11:09:15Z",
+  "home_pts": 26.0,
+  "away_pts": 19.0,
+  "result": -1,
+  "net": -1.0
  },
  {
   "id": "2026_06_NO_NYG|spread",
@@ -624,9 +632,13 @@
   "units": 1.0,
   "pred_away": 20.021,
   "pred_home": 25.239,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-13T11:09:15Z",
   "ml_first": -110.0,
-  "line_updated_at": "2026-10-18T11:13:56Z"
+  "line_updated_at": "2026-10-18T11:13:56Z",
+  "home_pts": 27.0,
+  "away_pts": 34.0,
+  "result": -1,
+  "net": -1.0
  }
 ]
