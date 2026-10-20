@@ -1578,11 +1578,14 @@
   "away": "WAS",
   "home": "SF",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-17T11:12:40Z",
   "team": "SF",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 23.0,
+  "away_pts": 17.0,
+  "result": 1
  },
  {
   "id": "2026_06_WAS_SF|spread",
@@ -1593,11 +1596,14 @@
   "away": "WAS",
   "home": "SF",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-17T11:12:40Z",
   "team": "SF",
   "line": -7.5,
-  "side": null
+  "side": null,
+  "home_pts": 23.0,
+  "away_pts": 17.0,
+  "result": -1
  },
  {
   "id": "2026_06_WAS_SF|total",
@@ -1608,11 +1614,14 @@
   "away": "WAS",
   "home": "SF",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-17T11:12:40Z",
   "team": null,
   "line": 52.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 23.0,
+  "away_pts": 17.0,
+  "result": 1
  },
  {
   "id": "2026_06_PIT_TB|ml",
@@ -1632,5 +1641,50 @@
   "home_pts": 19.0,
   "away_pts": 26.0,
   "result": 1
+ },
+ {
+  "id": "2026_07_NE_CHI|su",
+  "type": "su",
+  "game_id": "2026_07_NE_CHI",
+  "league": "nfl",
+  "kickoff": "2026-10-23T00:15:00Z",
+  "away": "NE",
+  "home": "CHI",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-20T11:19:19Z",
+  "team": "CHI",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_07_NE_CHI|spread",
+  "type": "spread",
+  "game_id": "2026_07_NE_CHI",
+  "league": "nfl",
+  "kickoff": "2026-10-23T00:15:00Z",
+  "away": "NE",
+  "home": "CHI",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-20T11:19:19Z",
+  "team": "NE",
+  "line": 3.0,
+  "side": null
+ },
+ {
+  "id": "2026_07_NE_CHI|total",
+  "type": "total",
+  "game_id": "2026_07_NE_CHI",
+  "league": "nfl",
+  "kickoff": "2026-10-23T00:15:00Z",
+  "away": "NE",
+  "home": "CHI",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-20T11:19:19Z",
+  "team": null,
+  "line": 50.5,
+  "side": "Under"
  }
 ]
