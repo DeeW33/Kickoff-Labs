@@ -685,7 +685,7 @@
   "home": "BAL",
   "team": "CIN",
   "side": null,
-  "line": 1.5,
+  "line": -1.5,
   "edge": 4.55,
   "units": 1.5,
   "pred_away": 23.983,
@@ -693,7 +693,7 @@
   "status": "pending",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": 3.0,
-  "line_updated_at": "2026-10-23T11:19:31Z"
+  "line_updated_at": "2026-10-24T11:14:11Z"
  },
  {
   "id": "2026_07_SF_ATL|spread",
