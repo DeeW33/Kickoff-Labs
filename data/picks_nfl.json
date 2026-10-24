@@ -662,7 +662,7 @@
   "home": "HOU",
   "team": "NYG",
   "side": null,
-  "line": 10.5,
+  "line": 10.0,
   "edge": 4.7,
   "units": 1.5,
   "pred_away": 20.246,
@@ -670,7 +670,7 @@
   "status": "pending",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": 10.0,
-  "line_updated_at": "2026-10-22T11:20:34Z"
+  "line_updated_at": "2026-10-24T15:22:36Z"
  },
  {
   "id": "2026_07_CIN_BAL|spread",
