@@ -2297,5 +2297,20 @@
   "team": null,
   "line": 44.5,
   "side": "Under"
+ },
+ {
+  "id": "2026_07_CIN_BAL|spread",
+  "type": "spread",
+  "game_id": "2026_07_CIN_BAL",
+  "league": "nfl",
+  "kickoff": "2026-10-25T17:00:00Z",
+  "away": "CIN",
+  "home": "BAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-25T11:16:33Z",
+  "team": "BAL",
+  "line": 3.0,
+  "side": null
  }
 ]

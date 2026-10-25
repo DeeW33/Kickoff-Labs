@@ -662,7 +662,7 @@
   "home": "HOU",
   "team": "NYG",
   "side": null,
-  "line": 10.0,
+  "line": 10.5,
   "edge": 4.7,
   "units": 1.5,
   "pred_away": 20.246,
@@ -670,7 +670,7 @@
   "status": "pending",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": 10.0,
-  "line_updated_at": "2026-10-24T15:22:36Z"
+  "line_updated_at": "2026-10-25T11:16:33Z"
  },
  {
   "id": "2026_07_CIN_BAL|spread",
@@ -685,7 +685,7 @@
   "home": "BAL",
   "team": "CIN",
   "side": null,
-  "line": -1.5,
+  "line": -3.0,
   "edge": 4.55,
   "units": 1.5,
   "pred_away": 23.983,
@@ -693,7 +693,7 @@
   "status": "pending",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": 3.0,
-  "line_updated_at": "2026-10-24T11:14:11Z"
+  "line_updated_at": "2026-10-25T11:16:33Z"
  },
  {
   "id": "2026_07_SF_ATL|spread",
