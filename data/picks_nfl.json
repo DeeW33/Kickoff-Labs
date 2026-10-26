@@ -667,10 +667,14 @@
   "units": 1.5,
   "pred_away": 20.246,
   "pred_home": 25.546,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": 10.0,
-  "line_updated_at": "2026-10-25T11:16:33Z"
+  "line_updated_at": "2026-10-25T11:16:33Z",
+  "home_pts": 21.0,
+  "away_pts": 27.0,
+  "result": 1,
+  "net": 1.364
  },
  {
   "id": "2026_07_CIN_BAL|spread",
@@ -690,10 +694,14 @@
   "units": 1.5,
   "pred_away": 23.983,
   "pred_home": 22.432,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": 3.0,
-  "line_updated_at": "2026-10-25T11:16:33Z"
+  "line_updated_at": "2026-10-25T11:16:33Z",
+  "home_pts": 13.0,
+  "away_pts": 35.0,
+  "result": 1,
+  "net": 1.364
  },
  {
   "id": "2026_07_SF_ATL|spread",
@@ -713,10 +721,14 @@
   "units": 1.0,
   "pred_away": 27.479,
   "pred_home": 20.369,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-20T11:19:19Z",
   "line_first": -3.5,
-  "line_updated_at": "2026-10-23T11:19:31Z"
+  "line_updated_at": "2026-10-23T11:19:31Z",
+  "home_pts": 29.0,
+  "away_pts": 20.0,
+  "result": -1,
+  "net": -1.0
  },
  {
   "id": "2026_07_DAL_PHI|spread",
@@ -757,7 +769,11 @@
   "units": 1.0,
   "pred_away": 27.014,
   "pred_home": 20.945,
-  "status": "pending",
-  "logged_at": "2026-10-23T11:19:31Z"
+  "status": "graded",
+  "logged_at": "2026-10-23T11:19:31Z",
+  "home_pts": 10.0,
+  "away_pts": 16.0,
+  "result": 1,
+  "net": 0.909
  }
 ]
