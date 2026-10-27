@@ -2373,11 +2373,14 @@
   "away": "DAL",
   "home": "PHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-24T11:14:11Z",
   "team": "DAL",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 21.0,
+  "away_pts": 38.0,
+  "result": 1
  },
  {
   "id": "2026_07_DAL_PHI|spread",
@@ -2388,11 +2391,14 @@
   "away": "DAL",
   "home": "PHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-24T11:14:11Z",
   "team": "PHI",
   "line": 4.5,
-  "side": null
+  "side": null,
+  "home_pts": 21.0,
+  "away_pts": 38.0,
+  "result": -1
  },
  {
   "id": "2026_07_DAL_PHI|total",
@@ -2403,11 +2409,14 @@
   "away": "DAL",
   "home": "PHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-24T11:14:11Z",
   "team": null,
   "line": 44.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 21.0,
+  "away_pts": 38.0,
+  "result": -1
  },
  {
   "id": "2026_07_CIN_BAL|spread",
@@ -2426,5 +2435,50 @@
   "home_pts": 13.0,
   "away_pts": 35.0,
   "result": -1
+ },
+ {
+  "id": "2026_08_CAR_GB|su",
+  "type": "su",
+  "game_id": "2026_08_CAR_GB",
+  "league": "nfl",
+  "kickoff": "2026-10-30T00:15:00Z",
+  "away": "CAR",
+  "home": "GB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-27T11:25:25Z",
+  "team": "GB",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_08_CAR_GB|spread",
+  "type": "spread",
+  "game_id": "2026_08_CAR_GB",
+  "league": "nfl",
+  "kickoff": "2026-10-30T00:15:00Z",
+  "away": "CAR",
+  "home": "GB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-27T11:25:25Z",
+  "team": "GB",
+  "line": -3.5,
+  "side": null
+ },
+ {
+  "id": "2026_08_CAR_GB|total",
+  "type": "total",
+  "game_id": "2026_08_CAR_GB",
+  "league": "nfl",
+  "kickoff": "2026-10-30T00:15:00Z",
+  "away": "CAR",
+  "home": "GB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-27T11:25:25Z",
+  "team": null,
+  "line": 47.5,
+  "side": "Under"
  }
 ]
