@@ -764,18 +764,20 @@
   "home": "BUF",
   "team": "BUF",
   "side": null,
-  "line": -3.5,
+  "line": -3.0,
   "edge": 4.347,
   "units": 1.5,
   "pred_away": 21.739,
   "pred_home": 29.586,
   "status": "pending",
-  "logged_at": "2026-10-27T11:25:25Z"
+  "logged_at": "2026-10-27T11:25:25Z",
+  "line_first": -3.5,
+  "line_updated_at": "2026-10-28T11:27:57Z"
  },
  {
   "id": "2026_08_KC_DEN|spread",
   "type": "ml",
-  "ml": 105.0,
+  "ml": 102.0,
   "game_id": "2026_08_KC_DEN",
   "league": "nfl",
   "season": 2026,
@@ -791,7 +793,9 @@
   "pred_away": 22.886,
   "pred_home": 24.705,
   "status": "pending",
-  "logged_at": "2026-10-27T11:25:25Z"
+  "logged_at": "2026-10-27T11:25:25Z",
+  "ml_first": 105.0,
+  "line_updated_at": "2026-10-28T11:27:57Z"
  },
  {
   "id": "2026_08_CLE_PIT|spread",
