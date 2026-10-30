@@ -743,13 +743,15 @@
   "home": "CIN",
   "team": "CIN",
   "side": null,
-  "line": -10.0,
+  "line": -12.5,
   "edge": 5.478,
   "units": 1.5,
   "pred_away": 15.178,
   "pred_home": 30.656,
   "status": "pending",
-  "logged_at": "2026-10-27T11:25:25Z"
+  "logged_at": "2026-10-27T11:25:25Z",
+  "line_first": -10.0,
+  "line_updated_at": "2026-10-30T11:23:37Z"
  },
  {
   "id": "2026_08_BAL_BUF|spread",
