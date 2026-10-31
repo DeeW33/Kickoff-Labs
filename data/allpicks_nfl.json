@@ -3031,5 +3031,50 @@
   "team": null,
   "line": 45.5,
   "side": "Over"
+ },
+ {
+  "id": "2026_08_CHI_SEA|su",
+  "type": "su",
+  "game_id": "2026_08_CHI_SEA",
+  "league": "nfl",
+  "kickoff": "2026-11-03T01:15:00Z",
+  "away": "CHI",
+  "home": "SEA",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-31T11:20:21Z",
+  "team": "SEA",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_08_CHI_SEA|spread",
+  "type": "spread",
+  "game_id": "2026_08_CHI_SEA",
+  "league": "nfl",
+  "kickoff": "2026-11-03T01:15:00Z",
+  "away": "CHI",
+  "home": "SEA",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-31T11:20:21Z",
+  "team": "CHI",
+  "line": 3.0,
+  "side": null
+ },
+ {
+  "id": "2026_08_CHI_SEA|total",
+  "type": "total",
+  "game_id": "2026_08_CHI_SEA",
+  "league": "nfl",
+  "kickoff": "2026-11-03T01:15:00Z",
+  "away": "CHI",
+  "home": "SEA",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-10-31T11:20:21Z",
+  "team": null,
+  "line": 46.5,
+  "side": "Under"
  }
 ]
