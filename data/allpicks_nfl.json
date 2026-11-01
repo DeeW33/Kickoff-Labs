@@ -3076,5 +3076,21 @@
   "team": null,
   "line": 46.5,
   "side": "Under"
+ },
+ {
+  "id": "2026_08_ATL_TB|ml",
+  "type": "ml",
+  "game_id": "2026_08_ATL_TB",
+  "league": "nfl",
+  "kickoff": "2026-11-01T18:00:00Z",
+  "away": "ATL",
+  "home": "TB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-01T11:23:04Z",
+  "team": "TB",
+  "line": null,
+  "side": null,
+  "ml": -130.0
  }
 ]
