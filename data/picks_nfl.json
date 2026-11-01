@@ -779,7 +779,7 @@
  {
   "id": "2026_08_KC_DEN|spread",
   "type": "ml",
-  "ml": -108.0,
+  "ml": -105.0,
   "game_id": "2026_08_KC_DEN",
   "league": "nfl",
   "season": 2026,
@@ -797,7 +797,7 @@
   "status": "pending",
   "logged_at": "2026-10-27T11:25:25Z",
   "ml_first": 105.0,
-  "line_updated_at": "2026-11-01T11:23:04Z"
+  "line_updated_at": "2026-11-01T15:30:02Z"
  },
  {
   "id": "2026_08_CLE_PIT|spread",
