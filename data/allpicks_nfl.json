@@ -3149,11 +3149,14 @@
   "away": "CHI",
   "home": "SEA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-31T11:20:21Z",
   "team": "SEA",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 17.0,
+  "away_pts": 34.0,
+  "result": -1
  },
  {
   "id": "2026_08_CHI_SEA|spread",
@@ -3164,11 +3167,14 @@
   "away": "CHI",
   "home": "SEA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-31T11:20:21Z",
   "team": "CHI",
   "line": 3.0,
-  "side": null
+  "side": null,
+  "home_pts": 17.0,
+  "away_pts": 34.0,
+  "result": 1
  },
  {
   "id": "2026_08_CHI_SEA|total",
@@ -3179,11 +3185,14 @@
   "away": "CHI",
   "home": "SEA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-10-31T11:20:21Z",
   "team": null,
   "line": 46.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 17.0,
+  "away_pts": 34.0,
+  "result": -1
  },
  {
   "id": "2026_08_ATL_TB|ml",
@@ -3203,5 +3212,50 @@
   "home_pts": 16.0,
   "away_pts": 0.0,
   "result": 1
+ },
+ {
+  "id": "2026_09_JAX_BAL|su",
+  "type": "su",
+  "game_id": "2026_09_JAX_BAL",
+  "league": "nfl",
+  "kickoff": "2026-11-06T01:15:00Z",
+  "away": "JAX",
+  "home": "BAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-03T18:10:29Z",
+  "team": "JAX",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_09_JAX_BAL|spread",
+  "type": "spread",
+  "game_id": "2026_09_JAX_BAL",
+  "league": "nfl",
+  "kickoff": "2026-11-06T01:15:00Z",
+  "away": "JAX",
+  "home": "BAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-03T18:10:29Z",
+  "team": "JAX",
+  "line": -9.5,
+  "side": null
+ },
+ {
+  "id": "2026_09_JAX_BAL|total",
+  "type": "total",
+  "game_id": "2026_09_JAX_BAL",
+  "league": "nfl",
+  "kickoff": "2026-11-06T01:15:00Z",
+  "away": "JAX",
+  "home": "BAL",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-03T18:10:29Z",
+  "team": null,
+  "line": 41.5,
+  "side": "Over"
  }
 ]
