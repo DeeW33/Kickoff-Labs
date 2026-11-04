@@ -777,5 +777,26 @@
   "pred_home": 22.207,
   "status": "pending",
   "logged_at": "2026-11-03T18:10:29Z"
+ },
+ {
+  "id": "2026_09_ARI_SEA|spread",
+  "type": "spread",
+  "ml": null,
+  "game_id": "2026_09_ARI_SEA",
+  "league": "nfl",
+  "season": 2026,
+  "week": 9,
+  "kickoff": "2026-11-08T21:25:00Z",
+  "away": "ARI",
+  "home": "SEA",
+  "team": "ARI",
+  "side": null,
+  "line": 12.5,
+  "edge": 4.126,
+  "units": 1.5,
+  "pred_away": 16.775,
+  "pred_home": 25.149,
+  "status": "pending",
+  "logged_at": "2026-11-04T18:20:51Z"
  }
 ]
