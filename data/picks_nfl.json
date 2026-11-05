@@ -770,13 +770,15 @@
   "home": "IND",
   "team": "IND",
   "side": null,
-  "line": 6.0,
+  "line": 5.5,
   "edge": 4.049,
   "units": 1.5,
   "pred_away": 24.158,
   "pred_home": 22.207,
   "status": "pending",
-  "logged_at": "2026-11-03T18:10:29Z"
+  "logged_at": "2026-11-03T18:10:29Z",
+  "line_first": 6.0,
+  "line_updated_at": "2026-11-05T18:23:50Z"
  },
  {
   "id": "2026_09_ARI_SEA|spread",
@@ -791,12 +793,14 @@
   "home": "SEA",
   "team": "ARI",
   "side": null,
-  "line": 12.5,
+  "line": 8.5,
   "edge": 4.126,
   "units": 1.5,
   "pred_away": 16.775,
   "pred_home": 25.149,
   "status": "pending",
-  "logged_at": "2026-11-04T18:20:51Z"
+  "logged_at": "2026-11-04T18:20:51Z",
+  "line_first": 12.5,
+  "line_updated_at": "2026-11-05T18:23:50Z"
  }
 ]
