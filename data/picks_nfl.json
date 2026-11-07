@@ -770,7 +770,7 @@
   "home": "IND",
   "team": "IND",
   "side": null,
-  "line": 5.5,
+  "line": 4.5,
   "edge": 4.049,
   "units": 1.5,
   "pred_away": 24.158,
@@ -778,7 +778,7 @@
   "status": "pending",
   "logged_at": "2026-11-03T18:10:29Z",
   "line_first": 6.0,
-  "line_updated_at": "2026-11-05T18:23:50Z"
+  "line_updated_at": "2026-11-07T15:30:57Z"
  },
  {
   "id": "2026_09_ARI_SEA|spread",
@@ -802,5 +802,26 @@
   "logged_at": "2026-11-04T18:20:51Z",
   "line_first": 12.5,
   "line_updated_at": "2026-11-05T18:23:50Z"
+ },
+ {
+  "id": "2026_09_NYJ_KC|spread",
+  "type": "spread",
+  "ml": null,
+  "game_id": "2026_09_NYJ_KC",
+  "league": "nfl",
+  "season": 2026,
+  "week": 9,
+  "kickoff": "2026-11-08T18:00:00Z",
+  "away": "NYJ",
+  "home": "KC",
+  "team": "KC",
+  "side": null,
+  "line": -8.5,
+  "edge": 3.311,
+  "units": 1.0,
+  "pred_away": 18.269,
+  "pred_home": 30.08,
+  "status": "pending",
+  "logged_at": "2026-11-07T15:30:57Z"
  }
 ]

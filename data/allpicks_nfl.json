@@ -3851,5 +3851,50 @@
   "team": null,
   "line": 40.5,
   "side": "Over"
+ },
+ {
+  "id": "2026_09_BUF_MIN|su",
+  "type": "su",
+  "game_id": "2026_09_BUF_MIN",
+  "league": "nfl",
+  "kickoff": "2026-11-10T01:15:00Z",
+  "away": "BUF",
+  "home": "MIN",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-07T15:30:57Z",
+  "team": "BUF",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_09_BUF_MIN|spread",
+  "type": "spread",
+  "game_id": "2026_09_BUF_MIN",
+  "league": "nfl",
+  "kickoff": "2026-11-10T01:15:00Z",
+  "away": "BUF",
+  "home": "MIN",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-07T15:30:57Z",
+  "team": "MIN",
+  "line": 3.0,
+  "side": null
+ },
+ {
+  "id": "2026_09_BUF_MIN|total",
+  "type": "total",
+  "game_id": "2026_09_BUF_MIN",
+  "league": "nfl",
+  "kickoff": "2026-11-10T01:15:00Z",
+  "away": "BUF",
+  "home": "MIN",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-07T15:30:57Z",
+  "team": null,
+  "line": 43.5,
+  "side": "Over"
  }
 ]
