@@ -825,5 +825,26 @@
   "logged_at": "2026-11-07T15:30:57Z",
   "line_first": -8.5,
   "line_updated_at": "2026-11-08T16:52:40Z"
+ },
+ {
+  "id": "2026_09_LV_SF|spread",
+  "type": "spread",
+  "ml": null,
+  "game_id": "2026_09_LV_SF",
+  "league": "nfl",
+  "season": 2026,
+  "week": 9,
+  "kickoff": "2026-11-08T21:05:00Z",
+  "away": "LV",
+  "home": "SF",
+  "team": "SF",
+  "side": null,
+  "line": -8.5,
+  "edge": 3.358,
+  "units": 1.0,
+  "pred_away": 21.43,
+  "pred_home": 33.288,
+  "status": "pending",
+  "logged_at": "2026-11-08T19:26:54Z"
  }
 ]
