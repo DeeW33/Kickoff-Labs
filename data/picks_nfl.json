@@ -816,12 +816,14 @@
   "home": "KC",
   "team": "KC",
   "side": null,
-  "line": -8.5,
+  "line": -9.5,
   "edge": 3.311,
   "units": 1.0,
   "pred_away": 18.269,
   "pred_home": 30.08,
   "status": "pending",
-  "logged_at": "2026-11-07T15:30:57Z"
+  "logged_at": "2026-11-07T15:30:57Z",
+  "line_first": -8.5,
+  "line_updated_at": "2026-11-08T16:52:40Z"
  }
 ]
