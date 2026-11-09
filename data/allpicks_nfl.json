@@ -3276,11 +3276,14 @@
   "away": "LA",
   "home": "WAS",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "LA",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 13.0,
+  "away_pts": 20.0,
+  "result": 1
  },
  {
   "id": "2026_09_LA_WAS|spread",
@@ -3291,11 +3294,14 @@
   "away": "LA",
   "home": "WAS",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "WAS",
   "line": 4.5,
-  "side": null
+  "side": null,
+  "home_pts": 13.0,
+  "away_pts": 20.0,
+  "result": -1
  },
  {
   "id": "2026_09_LA_WAS|total",
@@ -3306,11 +3312,14 @@
   "away": "LA",
   "home": "WAS",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 48.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 13.0,
+  "away_pts": 20.0,
+  "result": 1
  },
  {
   "id": "2026_09_NYG_PHI|su",
@@ -3321,11 +3330,14 @@
   "away": "NYG",
   "home": "PHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "NYG",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 11.0,
+  "away_pts": 19.0,
+  "result": 1
  },
  {
   "id": "2026_09_NYG_PHI|spread",
@@ -3336,11 +3348,14 @@
   "away": "NYG",
   "home": "PHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "PHI",
   "line": 3.5,
-  "side": null
+  "side": null,
+  "home_pts": 11.0,
+  "away_pts": 19.0,
+  "result": -1
  },
  {
   "id": "2026_09_NYG_PHI|total",
@@ -3351,11 +3366,14 @@
   "away": "NYG",
   "home": "PHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 38.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 11.0,
+  "away_pts": 19.0,
+  "result": -1
  },
  {
   "id": "2026_09_DET_MIA|su",
@@ -3366,11 +3384,14 @@
   "away": "DET",
   "home": "MIA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "DET",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 9.0,
+  "away_pts": 19.0,
+  "result": 1
  },
  {
   "id": "2026_09_DET_MIA|spread",
@@ -3381,11 +3402,14 @@
   "away": "DET",
   "home": "MIA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "DET",
   "line": -7.0,
-  "side": null
+  "side": null,
+  "home_pts": 9.0,
+  "away_pts": 19.0,
+  "result": 1
  },
  {
   "id": "2026_09_DET_MIA|total",
@@ -3396,11 +3420,14 @@
   "away": "DET",
   "home": "MIA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 50.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 9.0,
+  "away_pts": 19.0,
+  "result": 1
  },
  {
   "id": "2026_09_NYJ_KC|su",
@@ -3411,11 +3438,14 @@
   "away": "NYJ",
   "home": "KC",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "KC",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 35.0,
+  "away_pts": 12.0,
+  "result": 1
  },
  {
   "id": "2026_09_NYJ_KC|spread",
@@ -3426,11 +3456,14 @@
   "away": "NYJ",
   "home": "KC",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "KC",
   "line": -10.0,
-  "side": null
+  "side": null,
+  "home_pts": 35.0,
+  "away_pts": 12.0,
+  "result": 1
  },
  {
   "id": "2026_09_NYJ_KC|total",
@@ -3441,11 +3474,14 @@
   "away": "NYJ",
   "home": "KC",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 47.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 35.0,
+  "away_pts": 12.0,
+  "result": 1
  },
  {
   "id": "2026_09_DAL_IND|su",
@@ -3456,11 +3492,14 @@
   "away": "DAL",
   "home": "IND",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "DAL",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 23.0,
+  "away_pts": 27.0,
+  "result": 1
  },
  {
   "id": "2026_09_DAL_IND|spread",
@@ -3471,11 +3510,14 @@
   "away": "DAL",
   "home": "IND",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "IND",
   "line": 5.5,
-  "side": null
+  "side": null,
+  "home_pts": 23.0,
+  "away_pts": 27.0,
+  "result": 1
  },
  {
   "id": "2026_09_DAL_IND|total",
@@ -3486,11 +3528,14 @@
   "away": "DAL",
   "home": "IND",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 51.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 23.0,
+  "away_pts": 27.0,
+  "result": 1
  },
  {
   "id": "2026_09_DEN_CAR|su",
@@ -3501,11 +3546,14 @@
   "away": "DEN",
   "home": "CAR",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "DEN",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 21.0,
+  "away_pts": 26.0,
+  "result": 1
  },
  {
   "id": "2026_09_DEN_CAR|spread",
@@ -3516,11 +3564,14 @@
   "away": "DEN",
   "home": "CAR",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "DEN",
   "line": -2.5,
-  "side": null
+  "side": null,
+  "home_pts": 21.0,
+  "away_pts": 26.0,
+  "result": 1
  },
  {
   "id": "2026_09_DEN_CAR|total",
@@ -3531,11 +3582,14 @@
   "away": "DEN",
   "home": "CAR",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 44.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 21.0,
+  "away_pts": 26.0,
+  "result": 1
  },
  {
   "id": "2026_09_CIN_ATL|su",
@@ -3600,11 +3654,14 @@
   "away": "CLE",
   "home": "NO",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "NO",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 23.0,
+  "away_pts": 22.0,
+  "result": 1
  },
  {
   "id": "2026_09_CLE_NO|spread",
@@ -3615,11 +3672,14 @@
   "away": "CLE",
   "home": "NO",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": "CLE",
   "line": 3.0,
-  "side": null
+  "side": null,
+  "home_pts": 23.0,
+  "away_pts": 22.0,
+  "result": 1
  },
  {
   "id": "2026_09_CLE_NO|total",
@@ -3630,11 +3690,14 @@
   "away": "CLE",
   "home": "NO",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-05T18:23:50Z",
   "team": null,
   "line": 42.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 23.0,
+  "away_pts": 22.0,
+  "result": 1
  },
  {
   "id": "2026_09_TB_CHI|su",
@@ -3645,11 +3708,14 @@
   "away": "TB",
   "home": "CHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "CHI",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 27.0,
+  "away_pts": 24.0,
+  "result": 1
  },
  {
   "id": "2026_09_TB_CHI|spread",
@@ -3660,11 +3726,14 @@
   "away": "TB",
   "home": "CHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "TB",
   "line": 6.0,
-  "side": null
+  "side": null,
+  "home_pts": 27.0,
+  "away_pts": 24.0,
+  "result": 1
  },
  {
   "id": "2026_09_TB_CHI|total",
@@ -3675,11 +3744,14 @@
   "away": "TB",
   "home": "CHI",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": null,
   "line": 47.5,
-  "side": "Under"
+  "side": "Under",
+  "home_pts": 27.0,
+  "away_pts": 24.0,
+  "result": -1
  },
  {
   "id": "2026_09_ARI_SEA|su",
@@ -3690,11 +3762,14 @@
   "away": "ARI",
   "home": "SEA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "SEA",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 17.0,
+  "away_pts": 3.0,
+  "result": 1
  },
  {
   "id": "2026_09_ARI_SEA|spread",
@@ -3705,11 +3780,14 @@
   "away": "ARI",
   "home": "SEA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "ARI",
   "line": 8.5,
-  "side": null
+  "side": null,
+  "home_pts": 17.0,
+  "away_pts": 3.0,
+  "result": -1
  },
  {
   "id": "2026_09_ARI_SEA|total",
@@ -3720,11 +3798,14 @@
   "away": "ARI",
   "home": "SEA",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": null,
   "line": 39.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 17.0,
+  "away_pts": 3.0,
+  "result": -1
  },
  {
   "id": "2026_09_GB_NE|su",
@@ -3735,11 +3816,14 @@
   "away": "GB",
   "home": "NE",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "NE",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 27.0,
+  "away_pts": 45.0,
+  "result": -1
  },
  {
   "id": "2026_09_GB_NE|spread",
@@ -3750,11 +3834,14 @@
   "away": "GB",
   "home": "NE",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "NE",
   "line": -3.0,
-  "side": null
+  "side": null,
+  "home_pts": 27.0,
+  "away_pts": 45.0,
+  "result": -1
  },
  {
   "id": "2026_09_GB_NE|total",
@@ -3765,11 +3852,14 @@
   "away": "GB",
   "home": "NE",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": null,
   "line": 44.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 27.0,
+  "away_pts": 45.0,
+  "result": 1
  },
  {
   "id": "2026_09_LV_SF|su",
@@ -3780,11 +3870,14 @@
   "away": "LV",
   "home": "SF",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "SF",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 38.0,
+  "away_pts": 17.0,
+  "result": 1
  },
  {
   "id": "2026_09_LV_SF|spread",
@@ -3795,11 +3888,14 @@
   "away": "LV",
   "home": "SF",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "SF",
   "line": -10.0,
-  "side": null
+  "side": null,
+  "home_pts": 38.0,
+  "away_pts": 17.0,
+  "result": 1
  },
  {
   "id": "2026_09_LV_SF|total",
@@ -3810,11 +3906,14 @@
   "away": "LV",
   "home": "SF",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": null,
   "line": 51.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 38.0,
+  "away_pts": 17.0,
+  "result": 1
  },
  {
   "id": "2026_09_HOU_LAC|su",
@@ -3825,11 +3924,14 @@
   "away": "HOU",
   "home": "LAC",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "HOU",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 22.0,
+  "away_pts": 44.0,
+  "result": 1
  },
  {
   "id": "2026_09_HOU_LAC|spread",
@@ -3840,11 +3942,14 @@
   "away": "HOU",
   "home": "LAC",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": "LAC",
   "line": 6.0,
-  "side": null
+  "side": null,
+  "home_pts": 22.0,
+  "away_pts": 44.0,
+  "result": -1
  },
  {
   "id": "2026_09_HOU_LAC|total",
@@ -3855,11 +3960,14 @@
   "away": "HOU",
   "home": "LAC",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-06T17:44:54Z",
   "team": null,
   "line": 40.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 22.0,
+  "away_pts": 44.0,
+  "result": 1
  },
  {
   "id": "2026_09_BUF_MIN|su",
