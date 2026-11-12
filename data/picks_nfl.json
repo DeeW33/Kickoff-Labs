@@ -791,7 +791,7 @@
   "home": "GB",
   "team": "GB",
   "side": null,
-  "line": -3.5,
+  "line": -3.0,
   "edge": 3.0,
   "units": 1.0,
   "pred_away": 16.961,
@@ -799,6 +799,6 @@
   "status": "pending",
   "logged_at": "2026-11-10T18:21:53Z",
   "line_first": -5.5,
-  "line_updated_at": "2026-11-11T18:11:54Z"
+  "line_updated_at": "2026-11-12T18:39:15Z"
  }
 ]
