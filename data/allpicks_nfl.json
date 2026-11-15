@@ -4680,5 +4680,21 @@
   "team": null,
   "line": 38.5,
   "side": "Over"
+ },
+ {
+  "id": "2026_10_CAR_NO|ml",
+  "type": "ml",
+  "game_id": "2026_10_CAR_NO",
+  "league": "nfl",
+  "kickoff": "2026-11-15T18:00:00Z",
+  "away": "CAR",
+  "home": "NO",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-15T17:30:15Z",
+  "team": "CAR",
+  "line": null,
+  "side": null,
+  "ml": -110.0
  }
 ]
