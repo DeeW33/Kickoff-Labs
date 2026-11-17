@@ -4753,11 +4753,14 @@
   "away": "LAC",
   "home": "BAL",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-14T16:51:43Z",
   "team": "BAL",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 20.0,
+  "away_pts": 23.0,
+  "result": -1
  },
  {
   "id": "2026_10_LAC_BAL|spread",
@@ -4768,11 +4771,14 @@
   "away": "LAC",
   "home": "BAL",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-14T16:51:43Z",
   "team": "LAC",
   "line": 4.5,
-  "side": null
+  "side": null,
+  "home_pts": 20.0,
+  "away_pts": 23.0,
+  "result": 1
  },
  {
   "id": "2026_10_LAC_BAL|total",
@@ -4783,11 +4789,14 @@
   "away": "LAC",
   "home": "BAL",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-14T16:51:43Z",
   "team": null,
   "line": 38.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 20.0,
+  "away_pts": 23.0,
+  "result": 1
  },
  {
   "id": "2026_10_CAR_NO|ml",
@@ -4807,5 +4816,50 @@
   "home_pts": 17.0,
   "away_pts": 20.0,
   "result": 1
+ },
+ {
+  "id": "2026_11_IND_HOU|su",
+  "type": "su",
+  "game_id": "2026_11_IND_HOU",
+  "league": "nfl",
+  "kickoff": "2026-11-20T01:15:00Z",
+  "away": "IND",
+  "home": "HOU",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-17T19:28:50Z",
+  "team": "HOU",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_11_IND_HOU|spread",
+  "type": "spread",
+  "game_id": "2026_11_IND_HOU",
+  "league": "nfl",
+  "kickoff": "2026-11-20T01:15:00Z",
+  "away": "IND",
+  "home": "HOU",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-17T19:28:50Z",
+  "team": "IND",
+  "line": 12.5,
+  "side": null
+ },
+ {
+  "id": "2026_11_IND_HOU|total",
+  "type": "total",
+  "game_id": "2026_11_IND_HOU",
+  "league": "nfl",
+  "kickoff": "2026-11-20T01:15:00Z",
+  "away": "IND",
+  "home": "HOU",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-17T19:28:50Z",
+  "team": null,
+  "line": 44.5,
+  "side": "Over"
  }
 ]
