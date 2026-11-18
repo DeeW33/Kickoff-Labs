@@ -906,5 +906,26 @@
   "pred_home": 26.522,
   "status": "pending",
   "logged_at": "2026-11-17T19:28:50Z"
+ },
+ {
+  "id": "2026_11_CIN_WAS|spread",
+  "type": "spread",
+  "ml": null,
+  "game_id": "2026_11_CIN_WAS",
+  "league": "nfl",
+  "season": 2026,
+  "week": 11,
+  "kickoff": "2026-11-24T01:15:00Z",
+  "away": "CIN",
+  "home": "WAS",
+  "team": "WAS",
+  "side": null,
+  "line": 6.5,
+  "edge": 3.051,
+  "units": 1.0,
+  "pred_away": 26.414,
+  "pred_home": 22.964,
+  "status": "pending",
+  "logged_at": "2026-11-18T19:11:06Z"
  }
 ]
