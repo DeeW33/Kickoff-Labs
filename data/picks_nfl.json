@@ -883,8 +883,12 @@
   "units": 1.5,
   "pred_away": 19.805,
   "pred_home": 28.296,
-  "status": "pending",
-  "logged_at": "2026-11-17T19:28:50Z"
+  "status": "graded",
+  "logged_at": "2026-11-17T19:28:50Z",
+  "home_pts": 26.0,
+  "away_pts": 3.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_11_MIN_SF|spread",
@@ -899,13 +903,15 @@
   "home": "SF",
   "team": "SF",
   "side": null,
-  "line": -3.0,
+  "line": -3.5,
   "edge": 3.026,
   "units": 1.0,
   "pred_away": 20.496,
   "pred_home": 26.522,
   "status": "pending",
-  "logged_at": "2026-11-17T19:28:50Z"
+  "logged_at": "2026-11-17T19:28:50Z",
+  "line_first": -3.0,
+  "line_updated_at": "2026-11-20T18:54:40Z"
  },
  {
   "id": "2026_11_CIN_WAS|spread",
@@ -920,12 +926,14 @@
   "home": "WAS",
   "team": "WAS",
   "side": null,
-  "line": 6.5,
+  "line": 6.0,
   "edge": 3.051,
   "units": 1.0,
   "pred_away": 26.414,
   "pred_home": 22.964,
   "status": "pending",
-  "logged_at": "2026-11-18T19:11:06Z"
+  "logged_at": "2026-11-18T19:11:06Z",
+  "line_first": 6.5,
+  "line_updated_at": "2026-11-20T18:54:40Z"
  }
 ]
