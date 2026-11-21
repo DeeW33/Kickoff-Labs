@@ -5365,5 +5365,50 @@
   "team": null,
   "line": 37.5,
   "side": "Over"
+ },
+ {
+  "id": "2026_11_CIN_WAS|su",
+  "type": "su",
+  "game_id": "2026_11_CIN_WAS",
+  "league": "nfl",
+  "kickoff": "2026-11-24T01:15:00Z",
+  "away": "CIN",
+  "home": "WAS",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-21T17:49:57Z",
+  "team": "CIN",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_11_CIN_WAS|spread",
+  "type": "spread",
+  "game_id": "2026_11_CIN_WAS",
+  "league": "nfl",
+  "kickoff": "2026-11-24T01:15:00Z",
+  "away": "CIN",
+  "home": "WAS",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-21T17:49:57Z",
+  "team": "WAS",
+  "line": 6.0,
+  "side": null
+ },
+ {
+  "id": "2026_11_CIN_WAS|total",
+  "type": "total",
+  "game_id": "2026_11_CIN_WAS",
+  "league": "nfl",
+  "kickoff": "2026-11-24T01:15:00Z",
+  "away": "CIN",
+  "home": "WAS",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-21T17:49:57Z",
+  "team": null,
+  "line": 53.5,
+  "side": "Under"
  }
 ]
