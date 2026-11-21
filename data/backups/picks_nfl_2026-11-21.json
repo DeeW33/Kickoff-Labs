@@ -903,7 +903,7 @@
   "home": "SF",
   "team": "SF",
   "side": null,
-  "line": -3.5,
+  "line": -3.0,
   "edge": 3.026,
   "units": 1.0,
   "pred_away": 20.496,
@@ -911,7 +911,7 @@
   "status": "pending",
   "logged_at": "2026-11-17T19:28:50Z",
   "line_first": -3.0,
-  "line_updated_at": "2026-11-20T18:54:40Z"
+  "line_updated_at": "2026-11-21T20:49:38Z"
  },
  {
   "id": "2026_11_CIN_WAS|spread",
