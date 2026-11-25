@@ -905,13 +905,15 @@
   "home": "DET",
   "team": "DET",
   "side": null,
-  "line": 2.5,
+  "line": 1.5,
   "edge": 8.007,
   "units": 1.5,
   "pred_away": 21.88,
   "pred_home": 27.387,
   "status": "pending",
-  "logged_at": "2026-11-23T22:18:34Z"
+  "logged_at": "2026-11-23T22:18:34Z",
+  "line_first": 2.5,
+  "line_updated_at": "2026-11-25T20:18:38Z"
  },
  {
   "id": "2026_12_NO_CIN|spread",
@@ -968,13 +970,15 @@
   "home": "SF",
   "team": "SF",
   "side": null,
-  "line": -3.0,
+  "line": -2.5,
   "edge": 4.064,
   "units": 1.5,
   "pred_away": 19.856,
   "pred_home": 26.92,
   "status": "pending",
-  "logged_at": "2026-11-23T22:18:34Z"
+  "logged_at": "2026-11-23T22:18:34Z",
+  "line_first": -3.0,
+  "line_updated_at": "2026-11-25T20:18:38Z"
  },
  {
   "id": "2026_12_CAR_TB|spread",

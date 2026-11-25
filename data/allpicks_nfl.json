@@ -5743,5 +5743,21 @@
   "team": null,
   "line": 38.5,
   "side": "Over"
+ },
+ {
+  "id": "2026_12_CHI_DET|ml",
+  "type": "ml",
+  "game_id": "2026_12_CHI_DET",
+  "league": "nfl",
+  "kickoff": "2026-11-26T18:00:00Z",
+  "away": "CHI",
+  "home": "DET",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-25T20:18:38Z",
+  "team": "DET",
+  "line": null,
+  "side": null,
+  "ml": 103.0
  }
 ]
