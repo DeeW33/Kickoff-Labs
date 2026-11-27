@@ -910,10 +910,14 @@
   "units": 1.5,
   "pred_away": 21.88,
   "pred_home": 27.387,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-23T22:18:34Z",
   "line_first": 2.5,
-  "line_updated_at": "2026-11-25T20:18:38Z"
+  "line_updated_at": "2026-11-25T20:18:38Z",
+  "home_pts": 35.0,
+  "away_pts": 39.0,
+  "result": -1,
+  "net": -1.5
  },
  {
   "id": "2026_12_NO_CIN|spread",
