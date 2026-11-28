@@ -5744,11 +5744,14 @@
   "away": "DEN",
   "home": "PIT",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-24T20:56:02Z",
   "team": "DEN",
   "line": null,
-  "side": null
+  "side": null,
+  "home_pts": 27.0,
+  "away_pts": 5.0,
+  "result": -1
  },
  {
   "id": "2026_12_DEN_PIT|spread",
@@ -5759,11 +5762,14 @@
   "away": "DEN",
   "home": "PIT",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-24T20:56:02Z",
   "team": "PIT",
   "line": 3.0,
-  "side": null
+  "side": null,
+  "home_pts": 27.0,
+  "away_pts": 5.0,
+  "result": 1
  },
  {
   "id": "2026_12_DEN_PIT|total",
@@ -5774,11 +5780,14 @@
   "away": "DEN",
   "home": "PIT",
   "units": 1.0,
-  "status": "pending",
+  "status": "graded",
   "logged_at": "2026-11-24T20:56:02Z",
   "team": null,
   "line": 38.5,
-  "side": "Over"
+  "side": "Over",
+  "home_pts": 27.0,
+  "away_pts": 5.0,
+  "result": -1
  },
  {
   "id": "2026_12_CHI_DET|ml",
@@ -6247,6 +6256,67 @@
   "logged_at": "2026-11-27T19:44:21Z",
   "team": null,
   "line": 39.5,
+  "side": "Over"
+ },
+ {
+  "id": "2026_12_SEA_SF|ml",
+  "type": "ml",
+  "game_id": "2026_12_SEA_SF",
+  "league": "nfl",
+  "kickoff": "2026-11-29T21:25:00Z",
+  "away": "SEA",
+  "home": "SF",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-28T18:35:07Z",
+  "team": "SF",
+  "line": null,
+  "side": null,
+  "ml": 103.0
+ },
+ {
+  "id": "2026_12_CAR_TB|su",
+  "type": "su",
+  "game_id": "2026_12_CAR_TB",
+  "league": "nfl",
+  "kickoff": "2026-12-01T01:15:00Z",
+  "away": "CAR",
+  "home": "TB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-28T18:35:07Z",
+  "team": "TB",
+  "line": null,
+  "side": null
+ },
+ {
+  "id": "2026_12_CAR_TB|spread",
+  "type": "spread",
+  "game_id": "2026_12_CAR_TB",
+  "league": "nfl",
+  "kickoff": "2026-12-01T01:15:00Z",
+  "away": "CAR",
+  "home": "TB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-28T18:35:07Z",
+  "team": "TB",
+  "line": -3.0,
+  "side": null
+ },
+ {
+  "id": "2026_12_CAR_TB|total",
+  "type": "total",
+  "game_id": "2026_12_CAR_TB",
+  "league": "nfl",
+  "kickoff": "2026-12-01T01:15:00Z",
+  "away": "CAR",
+  "home": "TB",
+  "units": 1.0,
+  "status": "pending",
+  "logged_at": "2026-11-28T18:35:07Z",
+  "team": null,
+  "line": 43.5,
   "side": "Over"
  }
 ]

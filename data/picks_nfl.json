@@ -932,13 +932,15 @@
   "home": "CIN",
   "team": "CIN",
   "side": null,
-  "line": -10.0,
+  "line": -9.5,
   "edge": 4.716,
   "units": 1.5,
   "pred_away": 17.199,
   "pred_home": 31.914,
   "status": "pending",
-  "logged_at": "2026-11-23T22:18:34Z"
+  "logged_at": "2026-11-23T22:18:34Z",
+  "line_first": -10.0,
+  "line_updated_at": "2026-11-28T18:35:07Z"
  },
  {
   "id": "2026_12_NYG_IND|spread",
@@ -953,7 +955,7 @@
   "home": "IND",
   "team": "IND",
   "side": null,
-  "line": 6.0,
+  "line": 5.5,
   "edge": 4.053,
   "units": 1.5,
   "pred_away": 21.398,
@@ -961,7 +963,7 @@
   "status": "pending",
   "logged_at": "2026-11-23T22:18:34Z",
   "line_first": 6.5,
-  "line_updated_at": "2026-11-26T19:55:31Z"
+  "line_updated_at": "2026-11-28T18:35:07Z"
  },
  {
   "id": "2026_12_SEA_SF|spread",
@@ -976,7 +978,7 @@
   "home": "SF",
   "team": "SF",
   "side": null,
-  "line": -3.0,
+  "line": 1.5,
   "edge": 4.064,
   "units": 1.5,
   "pred_away": 19.856,
@@ -984,7 +986,7 @@
   "status": "pending",
   "logged_at": "2026-11-23T22:18:34Z",
   "line_first": -3.0,
-  "line_updated_at": "2026-11-26T19:55:31Z"
+  "line_updated_at": "2026-11-28T18:35:07Z"
  },
  {
   "id": "2026_12_CAR_TB|spread",
